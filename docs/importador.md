@@ -26,9 +26,14 @@ que a planilha principal passe do limite de 10 milhões de células do Google.
 ## Instalação (uma vez só, ~10 minutos)
 O seu Apps Script está em inglês; os nomes dos botões estão em inglês com a tradução entre parênteses.
 
-1. Acesse **script.google.com** (com a mesma conta da planilha) e clique em **New project** (Novo projeto).
-2. Clique em "Untitled project" no topo e renomeie para **Importar Relatórios**.
-3. Apague o que estiver no editor e cole **todo** o conteúdo de `apps-script/importar-relatorios.gs`.
+1. Abra a planilha **Base Mirassol SSP53** e vá em **Extensões › Apps Script** (Extensions › Apps Script).
+   É importante criar o script **de dentro da planilha**: assim ele roda com a conta que tem acesso a ela.
+   (Criado direto no script.google.com com outra conta, ele dá o erro
+   "You do not have permission to access the requested document".)
+2. Clique no nome do projeto no topo e renomeie para **Importar Relatórios**.
+   Se já existir código ali (ex.: o script do Histórico), **não apague**: clique no **+** ao lado de **Files**
+   › **Script**, dê o nome `importar-relatorios` e cole o código nesse arquivo novo.
+3. Cole **todo** o conteúdo de `apps-script/importar-relatorios.gs`.
    Clique no disquete (**Save**).
 4. *(Só se você for usar `.xlsx`)* No menu da esquerda, **Services** (Serviços) › **+** › escolha **Drive API** › **Add**.
    Para `.csv` não precisa.

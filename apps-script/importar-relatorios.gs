@@ -101,7 +101,7 @@ function importarRelatorios() {
   const inicio = Date.now();
   const erros = [];
   try {
-    const ss = SpreadsheetApp.openById(CONFIG.PLANILHA_ID);
+    const ss = abrirPlanilha();
     const entrada = pasta(CONFIG.PASTA_ENTRADA);
     const arquivos = [];
     const it = entrada.getFiles();
@@ -284,7 +284,7 @@ function arquivarAntigos() {
   if (!lock.tryLock(60000)) return;
   const erros = [];
   try {
-    const ss = SpreadsheetApp.openById(CONFIG.PLANILHA_ID);
+    const ss = abrirPlanilha();
     const limite = new Date();
     limite.setHours(0, 0, 0, 0);
     limite.setDate(limite.getDate() - CONFIG.DIAS_NA_PRINCIPAL);
@@ -457,6 +457,20 @@ function chaveCurta(texto) {
 }
 
 // ===== DRIVE, LOG E AVISOS =====
+/** Abre a planilha principal. Se o script foi criado de dentro dela (Extensões > Apps Script), usa ela direto. */
+function abrirPlanilha() {
+  const ativa = SpreadsheetApp.getActiveSpreadsheet();
+  if (ativa && ativa.getId() === CONFIG.PLANILHA_ID) return ativa;
+  try {
+    return SpreadsheetApp.openById(CONFIG.PLANILHA_ID);
+  } catch (e) {
+    let conta = '?';
+    try { conta = Session.getEffectiveUser().getEmail(); } catch (_) {}
+    throw new Error('A conta ' + conta + ' não tem acesso à planilha Base Mirassol SSP53. ' +
+      'Crie o script de DENTRO da planilha (Extensões > Apps Script), com a conta que é dona dela.');
+  }
+}
+
 function pasta(caminho) {
   let atual = null;
   for (const parte of caminho.split('/')) {
