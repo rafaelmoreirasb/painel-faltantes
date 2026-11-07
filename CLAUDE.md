@@ -33,7 +33,19 @@ atualize os arquivos do repositório — é aqui que o conhecimento fica, não n
 | Histórico (bipes de sorting/containerize) | `apps-script/historico.gs`, a cada 15 min (projeto Labor_Sorting) |
 | Direcionamento Manual | `apps-script/direcionamento-manual.gs`, a cada 15 min (projeto separado) |
 | Sorting | query automática (já aparece na planilha) |
-| Auditoria de carrinho, Inventário, Problem solver (Solução de Problemas), Tratativas, Aduana/Torre | **Excel exportado à mão** → futuro importador (pasta no Drive + Apps Script). Quando o acesso às queries sair, o importador é desligado. |
+| Aduana, Auditoria de Carrinho, Solução de Problemas | Rafael exporta 3 CSV por dia e joga na pasta do Drive **Faltantes – Entrada** → `apps-script/importar-relatorios.gs` (a cada 15 min; ver `docs/importador.md`). Quando o acesso às queries sair, desligar esse gatilho. |
+| Inventário, Tratativas | já se atualizam sozinhos |
+| Torre de Aduana | ? (confirmar com o Rafael) |
+
+**Retenção:** a planilha principal guarda só os últimos **15 dias** dessas 3 abas; toda madrugada o resto vai para
+`Arquivo Faltantes AAAA-MM` (pasta "Faltantes – Arquivo"). Motivo: limite de 10 milhões de células do Google
+(a planilha já tinha ~4,8 milhões; os 3 relatórios somam ~210 mil células/dia).
+
+**Formato das abas (após o importador):** tudo gravado como texto; datas `dd/mm/aaaa`, horas 24h; colunas extras
+`Importado em` e `Chave` no fim. Aduana: Shipment ID, Placa, Data auditoria, Hora, ID da rota, Estado, Rep auditoria,
+Tipo do pacote. Auditoria de Carrinho: Shipment ID, Data, Hora, Gaiola, Estado, Rep auditoria, Tipo. Solução de
+Problemas: mesmas colunas de antes (com "Hora","Data" no lugar de "Data","de") + ID do caso + Data de fechamento.
+Tipo do pacote / Tipo ficam em branco até chegar a aba que diferencia separável × volumoso.
 
 ## Regras de trabalho
 - Scripts Apps Script: sempre com trava (`LockService`), coluna `Chave` para não duplicar, `Importado em`, e um gatilho de 15 min criado por função `criarGatilho…` que só mexe no próprio gatilho. O Apps Script do Rafael está em **inglês** (Executions, Triggers, Time-driven).
