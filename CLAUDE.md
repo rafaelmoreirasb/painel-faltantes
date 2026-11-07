@@ -22,8 +22,8 @@ atualize os arquivos do repositório — é aqui que o conhecimento fica, não n
 ## Planilhas (Google Sheets)
 | Planilha | ID | Abas |
 |---|---|---|
-| **Base Mirassol SSP53** (principal, lida pelo painel) | `1z3Qm-qR6kymLBBOSuw7Yh-LLdOvfkR-pyTfgIBUBIQM` | Histórico (~240 mil linhas), Solução de Problemas, Torre de Aduana, Inventário, One Bipe, Tratativas, Aduana, Auditoria de Carrinho, Justificativas |
-| Conteneirização de Pacotes - Base SSP53 | `1nDqe83XDoY-A3u6rNxaMP2RT74mZNjrYSDUY2c9dKhk` | Histórico, Direcionamento Manual |
+| **Conteneirização de Pacotes - Base SSP53** (PRINCIPAL — conta pessoal do Rafael; recebe o importador e será lida pelo painel) | `1nDqe83XDoY-A3u6rNxaMP2RT74mZNjrYSDUY2c9dKhk` | Histórico (~245 mil linhas), Direcionamento Manual, Torre Aduana, Inventário (~154 mil), Auditoria de Carrinho, Problem Solving, Aduana |
+| Base Mirassol SSP53 (antiga; usada pelo painel antigo) | `1z3Qm-qR6kymLBBOSuw7Yh-LLdOvfkR-pyTfgIBUBIQM` | Histórico, Solução de Problemas, Torre de Aduana, Inventário, One Bipe, Tratativas, Aduana, Auditoria de Carrinho, Justificativas |
 | Origem do Histórico (Labor) | `1O4clXDtcty6TiCVsBXFu0I45Hv9LSysBoI70M4Kd6qc` | gid=0 |
 | Origem do Direcionamento Manual | `1No0tZ8yI7HJpKV2V2_PgKqIBpHXVlbTKsdy-lhBzkYk` | gid=1903954199 |
 
@@ -33,18 +33,18 @@ atualize os arquivos do repositório — é aqui que o conhecimento fica, não n
 | Histórico (bipes de sorting/containerize) | `apps-script/historico.gs`, a cada 15 min (projeto Labor_Sorting) |
 | Direcionamento Manual | `apps-script/direcionamento-manual.gs`, a cada 15 min (projeto separado) |
 | Sorting | query automática (já aparece na planilha) |
-| Aduana, Auditoria de Carrinho, Solução de Problemas | Rafael exporta 3 CSV por dia e joga na pasta do Drive **Faltantes – Entrada** → `apps-script/importar-relatorios.gs` (a cada 15 min; ver `docs/importador.md`). Quando o acesso às queries sair, desligar esse gatilho. |
+| Aduana, Auditoria de Carrinho, Problem Solving | Rafael exporta 3 CSV por dia e joga na pasta do Drive **Faltantes – Entrada** → `apps-script/importar-relatorios.gs` (a cada 15 min; ver `docs/importador.md`). Quando o acesso às queries sair, desligar esse gatilho. |
 | Inventário, Tratativas | já se atualizam sozinhos |
 | Torre de Aduana | ? (confirmar com o Rafael) |
 
 **Retenção:** a planilha principal guarda só os últimos **15 dias** dessas 3 abas; toda madrugada o resto vai para
 `Arquivo Faltantes AAAA-MM` (pasta "Faltantes – Arquivo"). Motivo: limite de 10 milhões de células do Google
-(a planilha já tinha ~4,8 milhões; os 3 relatórios somam ~210 mil células/dia).
+(a planilha já tinha ~8,7 milhões de células, 6,4 milhões só no Histórico com 26 colunas das quais 11 usadas; os 3 relatórios somam ~210 mil células/dia).
 
 **Formato das abas (após o importador):** tudo gravado como texto; datas `dd/mm/aaaa`, horas 24h; colunas extras
 `Importado em` e `Chave` no fim. Aduana: Shipment ID, Placa, Data auditoria, Hora, ID da rota, Estado, Rep auditoria,
-Tipo do pacote. Auditoria de Carrinho: Shipment ID, Data, Hora, Gaiola, Estado, Rep auditoria, Tipo. Solução de
-Problemas: mesmas colunas de antes (com "Hora","Data" no lugar de "Data","de") + ID do caso + Data de fechamento.
+Tipo do pacote. Auditoria de Carrinho: Shipment ID, Data, Hora, Gaiola, Estado, Rep auditoria, Tipo. Problem
+Solving: mesmas colunas de antes (com "Hora","Data" no lugar de "Data","de") + ID do caso + Data de fechamento.
 Tipo do pacote / Tipo ficam em branco até chegar a aba que diferencia separável × volumoso.
 
 ## Regras de trabalho

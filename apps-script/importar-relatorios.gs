@@ -4,7 +4,7 @@
  * O que faz:
  *  - A cada 15 minutos olha a pasta do Drive "Faltantes – Entrada".
  *  - Cada arquivo .csv ou .xlsx que encontrar é reconhecido pelos cabeçalhos (o nome não importa),
- *    tratado e juntado na aba certa da planilha Base Mirassol SSP53, SEM duplicar.
+ *    tratado e juntado na aba certa da planilha Conteneirização de Pacotes - Base SSP53, SEM duplicar.
  *  - Problem Solving: se um caso já existe (mesmo nº do caso), a linha é ATUALIZADA.
  *  - Depois o arquivo vai para "Faltantes – Entrada/Processados/AAAA-MM-DD".
  *  - Toda madrugada, as linhas com mais de 15 dias saem da planilha principal e vão para
@@ -20,7 +20,7 @@
 
 // ===== CONFIGURAÇÃO =====
 const CONFIG = {
-  PLANILHA_ID: '1z3Qm-qR6kymLBBOSuw7Yh-LLdOvfkR-pyTfgIBUBIQM', // Base Mirassol SSP53
+  PLANILHA_ID: '1nDqe83XDoY-A3u6rNxaMP2RT74mZNjrYSDUY2c9dKhk', // Conteneirização de Pacotes - Base SSP53
   PASTA_ENTRADA: 'Faltantes – Entrada',
   PASTA_ARQUIVO: 'Faltantes – Arquivo',
   DIAS_NA_PRINCIPAL: 15,   // linhas mais antigas que isso vão para o arquivo mensal
@@ -67,7 +67,7 @@ const RELATORIOS = [
   {
     id: 'ps',
     nome: 'Problem Solving',
-    aba: 'Solução de Problemas',
+    aba: 'Problem Solving',
     detectar: (t) => t.has('id do pacote') && t.has('problema') && t.has('data de criacao'),
     cabecalho: ['ID do pacote', 'Problema', 'Estado', 'Problem Solver', 'Hora', 'Data', 'Service Center', 'Resolução',
       'Status de resolução', 'Analisado por', 'Data de análise', 'Tempo de resolução em minutos', 'Origem de dano',
@@ -466,7 +466,7 @@ function abrirPlanilha() {
   } catch (e) {
     let conta = '?';
     try { conta = Session.getEffectiveUser().getEmail(); } catch (_) {}
-    throw new Error('A conta ' + conta + ' não tem acesso à planilha Base Mirassol SSP53. ' +
+    throw new Error('A conta ' + conta + ' não tem acesso à planilha Conteneirização de Pacotes - Base SSP53. ' +
       'Crie o script de DENTRO da planilha (Extensões > Apps Script), com a conta que é dona dela.');
   }
 }
@@ -520,7 +520,7 @@ function registrar(ss, arquivo, relatorio, lidas, novas, atualizadas, iguais, re
 function avisarErro(titulo, erros) {
   try {
     MailApp.sendEmail(Session.getEffectiveUser().getEmail(), '⚠️ Painel de Faltantes: erro em ' + titulo,
-      'Aconteceu um problema:\n\n' + erros.join('\n') + '\n\nVeja a aba "' + CONFIG.ABA_LOG + '" da planilha Base Mirassol SSP53.');
+      'Aconteceu um problema:\n\n' + erros.join('\n') + '\n\nVeja a aba "' + CONFIG.ABA_LOG + '" da planilha Conteneirização de Pacotes - Base SSP53.');
   } catch (e) {
     console.error('Não consegui enviar e-mail: ' + e.message);
   }

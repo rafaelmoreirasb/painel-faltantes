@@ -8,7 +8,7 @@ Você joga os arquivos exportados (Aduana, Auditoria de Carrinho, Problem Solvin
 
 1. reconhece cada arquivo pelos cabeçalhos (o nome do arquivo não importa; aceita `.csv` e `.xlsx`);
 2. trata as colunas para o formato da aba (data e hora separadas, rota sem o número, hora 24h);
-3. junta na aba certa da planilha **Base Mirassol SSP53** sem duplicar
+3. junta na aba certa da planilha **Conteneirização de Pacotes - Base SSP53** sem duplicar
    (no Problem Solving, um caso que mudou de estado **atualiza** a linha);
 4. move o arquivo para **Faltantes – Entrada › Processados › AAAA-MM-DD**;
 5. registra tudo na aba **Log importação** e manda e-mail se der erro.
@@ -21,12 +21,12 @@ que a planilha principal passe do limite de 10 milhões de células do Google.
 |---|---|
 | `audited_shipments…` com coluna **Placa** (Aduana) | Aduana |
 | `audited_shipments…` com coluna **Gaiola** (Auditoria de Carrinho) | Auditoria de Carrinho |
-| `report_logistics_problem_solving…` | Solução de Problemas |
+| `report_logistics_problem_solving…` | Problem Solving |
 
 ## Instalação (uma vez só, ~10 minutos)
 O seu Apps Script está em inglês; os nomes dos botões estão em inglês com a tradução entre parênteses.
 
-1. Abra a planilha **Base Mirassol SSP53** e vá em **Extensões › Apps Script** (Extensions › Apps Script).
+1. Abra a planilha **Conteneirização de Pacotes - Base SSP53** e vá em **Extensões › Apps Script** (Extensions › Apps Script).
    É importante criar o script **de dentro da planilha**: assim ele roda com a conta que tem acesso a ela.
    (Criado direto no script.google.com com outra conta, ele dá o erro
    "You do not have permission to access the requested document".)
