@@ -39,7 +39,7 @@ atualize os arquivos do repositório — é aqui que o conhecimento fica, não n
 
 **Retenção:** a planilha principal guarda só os últimos **15 dias** dessas 3 abas; toda madrugada o resto vai para
 `Arquivo Faltantes AAAA-MM` (pasta "Faltantes – Arquivo"). Motivo: limite de 10 milhões de células do Google
-(a planilha já tinha ~8,7 milhões de células, 6,4 milhões só no Histórico com 26 colunas das quais 11 usadas; os 3 relatórios somam ~210 mil células/dia).
+(em 07/11 a planilha tinha ~8,7 milhões de células; após excluir as colunas vazias L–Z do Histórico, ~5 milhões; os 3 relatórios somam ~210 mil células/dia).
 
 **Formato das abas (após o importador):** tudo gravado como texto; datas `dd/mm/aaaa`, horas 24h; colunas extras
 `Importado em` e `Chave` no fim. Aduana: Shipment ID, Placa, Data auditoria, Hora, ID da rota, Estado, Rep auditoria,
