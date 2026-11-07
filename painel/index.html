@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Faltantes na Aduana · SSP53</title>
+<style>
+  :root {
+    --bg: #f3f5f4; --panel: #ffffff; --sunk: #eaeeec; --fg: #18211d; --muted: #5b6862; --line: #d4dbd7;
+    --accent: #23584a; --accent-fg: #ffffff; --bad: #b23a2e; --warn: #9a6400; --ok: #2f7047; --open: #a7b3ad;
+    --man: #7a4fb0; --new-bg: #fff3c4; --new-fg: #6b4a00;
+    --f-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #121715; --panel: #1a211e; --sunk: #222b27; --fg: #e5ebe8; --muted: #9aa8a1; --line: #323d38;
+    --accent: #8cc4b2; --accent-fg: #10201a; --bad: #ec8a7f; --warn: #e2b54a; --ok: #7cc493; --open: #5f6d66;
+    --man: #b48ee6; --new-bg: #4a3b0c; --new-fg: #f6dc8a; color-scheme: dark } }
+  :root[data-theme="dark"] {
+    --bg: #121715; --panel: #1a211e; --sunk: #222b27; --fg: #e5ebe8; --muted: #9aa8a1; --line: #323d38;
+    --accent: #8cc4b2; --accent-fg: #10201a; --bad: #ec8a7f; --warn: #e2b54a; --ok: #7cc493; --open: #5f6d66;
+    --man: #b48ee6; --new-bg: #4a3b0c; --new-fg: #f6dc8a; color-scheme: dark }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 20px 16px 56px; display: flex; flex-direction: column; gap: 18px; }
+  header { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: flex-end; justify-content: space-between; }
+  .eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 0; }
+  h1 { margin: 2px 0 0; font-size: clamp(24px, 4vw, 32px); line-height: 1.1; }
+  h2 { margin: 0; font-size: 18px; }
+  .status { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 13px; color: var(--muted); }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); margin-right: 6px; }
+  .dot.off { background: var(--bad); } .dot.load { background: var(--warn); }
+  button, select, input { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
+  button { cursor: pointer; } button:hover { border-color: var(--accent); }
+  button:focus-visible, select:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+  .controls label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+  .msg { margin: 0; padding: 10px 14px; border-radius: 8px; background: var(--sunk); font-size: 14px; }
+  .msg.err { background: color-mix(in srgb, var(--bad) 14%, var(--panel)); color: var(--fg); }
+  .msg[hidden] { display: none; }
+  .lead { margin: 0; color: var(--muted); max-width: 90ch; } .lead b { color: var(--fg); }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; min-width: 0; }
+  .tile .lbl, .tile .sub { font-size: 12px; color: var(--muted); }
+  .tile .val { font-size: 30px; font-weight: 650; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .tile.bad .val { color: var(--bad); } .tile.new .val { color: var(--warn); } .tile.man .val { color: var(--man); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .note { margin: 0; font-size: 13px; color: var(--muted); }
+  .bars { display: flex; flex-direction: column; gap: 6px; }
+  .row { display: grid; grid-template-columns: minmax(0, 18rem) 1fr 3rem; gap: 10px; align-items: center; font-size: 13px; padding: 3px 4px; border-radius: 4px; cursor: pointer; border: 0; background: none; text-align: left; width: 100%; }
+  .row:hover, .row.sel { background: var(--sunk); } .row.sel { font-weight: 650; } .row.dim { opacity: .5; }
+  .row .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .n { text-align: right; font-variant-numeric: tabular-nums; }
+  .track { height: 14px; background: var(--sunk); border-radius: 3px; overflow: hidden; }
+  .fill { height: 100%; }
+  .tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+  .tools input { flex: 1 1 220px; max-width: 340px; }
+  .chip { font-size: 12px; border-radius: 999px; padding: 2px 10px; }
+  .scroll { overflow: auto; max-height: 75vh; border: 1px solid var(--line); border-radius: 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { position: sticky; top: 0; z-index: 1; background: var(--panel); text-align: left; font-weight: 600; color: var(--muted); padding: 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td.mono { font-family: var(--f-mono); font-size: 12px; white-space: nowrap; }
+  td.res { min-width: 12rem; }
+  td.tl { min-width: 26rem; }
+  .tl ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+  .tl li { display: grid; grid-template-columns: 6.6rem 7.5rem 1fr; gap: 6px; font-size: 12px; padding: 1px 4px; border-radius: 4px; }
+  .tl li.novo { background: var(--new-bg); color: var(--new-fg); }
+  .tl li.ancora { font-weight: 650; }
+  .tl .q { font-family: var(--f-mono); color: var(--muted); }
+  .tl li.novo .q { color: inherit; }
+  .src { font-size: 11px; font-weight: 600; }
+  .src.historico { color: var(--accent); } .src.aduana { color: var(--bad); } .src.carrinho { color: var(--warn); }
+  .src.ps { color: var(--man); } .src.inventario { color: var(--ok); } .src.torre, .src.direcionamento { color: var(--muted); }
+  .pill { display: inline-block; font-size: 11px; border-radius: 999px; padding: 0 7px; margin-left: 4px; border: 1px solid currentColor; vertical-align: 1px; }
+  .pill.man { color: var(--man); } .pill.novo { color: var(--warn); } .pill.sem { color: var(--bad); }
+  .sub { display: block; font-size: 12px; color: var(--muted); }
+  a { color: var(--accent); }
+  .empty { text-align: center; color: var(--muted); padding: 28px 0; }
+  footer { font-size: 12px; color: var(--muted); }
+  @media (max-width: 700px) { .row { grid-template-columns: minmax(0, 9rem) 1fr 2.4rem; } .tile .val { font-size: 26px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <p class="eyebrow">SSP53 Mirassol · aduana</p>
+      <h1>Faltantes na aduana</h1>
+    </div>
+    <div class="status">
+      <span><span id="dot" class="dot load"></span><span id="atualizado">Carregando…</span></span>
+      <button id="btnAtualizar" type="button">↻ Atualizar agora</button>
+      <button id="btnTema" type="button">Tema</button>
+    </div>
+  </header>
+
+  <div class="controls">
+    <label>Dia analisado<select id="selDia" aria-label="Dia analisado"></select></label>
+    <button id="btnVisto" type="button" title="Os bipes que você ainda não tinha visto ficam amarelos. Este botão marca todos como vistos.">Marcar bipes como vistos</button>
+    <a id="lnkPlanilha" target="_blank" rel="noopener">Abrir a aba Classificação manual ↗</a>
+  </div>
+
+  <p id="msg" class="msg" role="status" hidden></p>
+  <main id="conteudo" style="display:flex;flex-direction:column;gap:18px"></main>
+  <footer id="rodape"></footer>
+</div>
+
+<script src="regras.js"></script>
+<script>
+(() => {
+  /* ===================== CONFIGURAÇÃO ===================== */
+  const CONFIG = {
+    PLANILHA: '1nDqe83XDoY-A3u6rNxaMP2RT74mZNjrYSDUY2c9dKhk', // Conteneirização de Pacotes - Base SSP53
+    GID_CLASSIFICACAO: 527786439,                           // aba "Classificação manual"
+    JANELA_HORAS: 36,                                       // linha do tempo: conteinerização + 36 h
+    ATUALIZAR_MIN: 5,
+    IDS_POR_CONSULTA: 60,                                   // consultas ao Google em lotes (endereço não pode ser enorme)
+  };
+
+  /* Cada aba que entra na linha do tempo: onde está o ID, a data e como resumir o registro. */
+  const FONTES = {
+    historico: { aba: 'Histórico', nome: 'Histórico', id: 'IdPacote', data: 'Data', hora: 'Horas',
+      texto: (g) => juntar(g('Processo'), g('SubStatus'), g('Ext') || g('UserID'), g('Origem') && 'origem ' + g('Origem')) },
+    carrinho: { aba: 'Auditoria de Carrinho', nome: 'Aud. carrinho', id: 'Shipment ID', data: 'Data', hora: 'Hora',
+      texto: (g) => juntar(g('Gaiola') && 'gaiola ' + g('Gaiola'), g('Estado'), g('Rep auditoria')) },
+    aduana: { aba: 'Aduana', nome: 'Aduana', id: 'Shipment ID', data: 'Data auditoria', hora: 'Hora',
+      texto: (g) => juntar(g('ID da rota'), g('Estado'), g('Rep auditoria'), g('Placa') && 'placa ' + g('Placa')) },
+    ps: { aba: 'Problem Solving', nome: 'Problem Solving', id: 'ID do pacote', data: 'Data', hora: 'Hora',
+      texto: (g) => juntar(g('Problema'), g('Estado'), g('Resolução'), g('Status de resolução'), g('Motivo'),
+        g('Rota sugerida') && 'rota sugerida ' + g('Rota sugerida'), g('Problem Solver') !== '-' && g('Problem Solver')) },
+    inventario: { aba: 'Inventário', nome: 'Inventário', id: 'Shipment ID', data: 'Data Reporte', hora: 'Horario',
+      texto: (g) => juntar(g('Situação'), g('Ârea'), g('Operador'), g('Comentario')) },
+    torre: { aba: 'Torre Aduana', nome: 'Torre', id: 'Shipment ID', data: 'Concluido em', hora: null,
+      texto: (g) => juntar(g('Estado aduana'), g('Gaiola (rota otim,)'), g('Classificacao'), g('Status tratativa'), g('Tratativa - responsavel/obs')) },
+    direcionamento: { aba: 'Direcionamento Manual', nome: 'Direcionamento', id: 'ID DO PRODUTO', data: null, hora: null, quando: 'Carimbo de data/hora',
+      texto: (g) => juntar(g('STATUS'), g('REDIRECIONAMENTO') && 'redirecionamento ' + g('REDIRECIONAMENTO'), g('ROTA')) },
+  };
+
+  /* ===================== AJUDANTES ===================== */
+  const $ = (s) => document.querySelector(s);
+  const norm = (s) => String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const juntar = (...p) => p.filter((x) => x && String(x).trim() && String(x).trim() !== '-').join(' · ');
+  const pad = (n) => String(n).padStart(2, '0');
+  const dmy = (d) => pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear();
+  const ymd = (d) => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  const hm = (d) => pad(d.getHours()) + ':' + pad(d.getMinutes());
+  const curto = (d) => pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + ' ' + hm(d);
+  const fmt = (n) => Number(n).toLocaleString('pt-BR');
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const somaDias = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+
+  /** "05/11/2026" (+ "07:33:31") → Date. Aceita "05/11/2026 7:10" e "05/11/26". */
+  function lerDataHora(data, hora) {
+    const m = String(data || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+    if (!m) return null;
+    let [h, mi, s] = [m[4], m[5], m[6]];
+    const t = String(hora || '').match(/(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+    if (t) [h, mi, s] = [t[1], t[2], t[3]];
+    const ano = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+    return new Date(ano, Number(m[2]) - 1, Number(m[1]), Number(h || 0), Number(mi || 0), Number(s || 0));
+  }
+
+  /* ===================== LEITURA DO GOOGLE SHEETS ===================== */
+  class ErroAcesso extends Error {}
+
+  /** Converte uma célula do gviz em texto: datas viram "dd/mm/aaaa [hh:mm:ss]". */
+  function celula(c, col) {
+    if (!c || c.v == null) return c && c.f ? String(c.f) : '';
+    if (col.type === 'date' || col.type === 'datetime') {
+      const m = String(c.v).match(/Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+),(\d+))?/);
+      if (m) {
+        const d = new Date(+m[1], +m[2], +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0));
+        return col.type === 'date' ? dmy(d) : dmy(d) + ' ' + hm(d) + ':' + pad(d.getSeconds());
+      }
+    }
+    if (col.type === 'timeofday' && Array.isArray(c.v)) return pad(c.v[0]) + ':' + pad(c.v[1]) + ':' + pad(c.v[2] || 0);
+    if (col.type === 'number') return Number.isInteger(c.v) ? String(c.v) : (c.f != null ? String(c.f) : String(c.v));
+    return String(c.v);
+  }
+
+  async function gviz(aba, tq) {
+    const url = 'https://docs.google.com/spreadsheets/d/' + CONFIG.PLANILHA + '/gviz/tq?tqx=out:json&headers=1&sheet=' +
+      encodeURIComponent(aba) + '&tq=' + encodeURIComponent(tq) + '&_=' + Date.now();
+    let r;
+    try { r = await fetch(url, { cache: 'no-store' }); } catch (e) { throw new Error('Sem conexão com o Google. Confira a internet.'); }
+    const t = await r.text();
+    if (r.status === 401 || r.status === 403 || /^\s*</.test(t)) throw new ErroAcesso('A planilha não está compartilhada como "Qualquer pessoa com o link".');
+    if (!r.ok) throw new Error('O Google respondeu ' + r.status + ' ao ler a aba ' + aba + '.');
+    const j = JSON.parse(t.slice(t.indexOf('{'), t.lastIndexOf('}') + 1));
+    if (j.status === 'error') throw new Error('Aba "' + aba + '": ' + j.errors.map((e) => e.detailed_message || e.message).join('; '));
+    const cols = j.table.cols.map((c) => ({ id: c.id, label: String(c.label || '').trim(), type: c.type }));
+    const rows = (j.table.rows || []).map((r) => r.c.map((c, i) => celula(c, cols[i])));
+    return { cols, rows };
+  }
+
+  /** Descobre colunas e tipos de cada aba (uma vez). */
+  const esquemas = {};
+  async function esquema(aba) {
+    if (!esquemas[aba]) {
+      const { cols } = await gviz(aba, 'select * limit 1');
+      esquemas[aba] = { cols, por: (label) => cols.find((c) => norm(c.label) === norm(label)) || null };
+    }
+    return esquemas[aba];
+  }
+
+  const condIds = (col, ids) => col.type === 'number'
+    ? '(' + ids.map((i) => col.id + ' = ' + Number(i)).join(' or ') + ')'
+    : col.id + " matches '(" + ids.join('|') + ")'";
+  function condDias(col, dias) {
+    if (col.type === 'date') return '(' + col.id + " >= date '" + ymd(dias[0]) + "' and " + col.id + " <= date '" + ymd(dias[dias.length - 1]) + "')";
+    if (col.type === 'datetime') return '(' + col.id + " >= datetime '" + ymd(dias[0]) + " 00:00:00' and " + col.id + " < datetime '" + ymd(somaDias(dias[dias.length - 1], 1)) + " 00:00:00')";
+    return '(' + dias.map((d) => col.id + " starts with '" + dmy(d) + "'").join(' or ') + ')';
+  }
+
+  /** Linhas de uma aba para estes IDs (e, se der, só nestes dias). Devolve objetos {coluna: valor}. */
+  async function linhasPorIds(fonte, ids, dias) {
+    const f = FONTES[fonte];
+    const sc = await esquema(f.aba);
+    const cId = sc.por(f.id);
+    if (!cId) throw new Error('Aba "' + f.aba + '": não achei a coluna "' + f.id + '".');
+    const cData = f.data ? sc.por(f.data) : null;
+    const out = [];
+    for (let i = 0; i < ids.length; i += CONFIG.IDS_POR_CONSULTA) {
+      const lote = ids.slice(i, i + CONFIG.IDS_POR_CONSULTA);
+      let where = condIds(cId, lote);
+      if (cData) where += ' and ' + condDias(cData, dias);
+      const { cols, rows } = await gviz(f.aba, 'select * where ' + where);
+      for (const r of rows) { const o = {}; cols.forEach((c, k) => { if (c.label) o[c.label] = r[k]; }); out.push(o); }
+    }
+    return out;
+  }
+
+  /* ===================== MONTAGEM DOS PACOTES ===================== */
+  const S = { dias: [], dia: null, pacotes: [], manual: new Map(), filtro: null, busca: '', vistosAntes: null, carregando: false, ultima: null };
+
+  async function carregarDias() {
+    const sc = await esquema('Aduana');
+    const cData = sc.por('Data auditoria'), cEst = sc.por('Estado');
+    const { rows } = await gviz('Aduana', 'select ' + cData.id + ', count(' + sc.cols[0].id + ") where " + cEst.id + " = 'Faltante' group by " + cData.id);
+    S.dias = rows.map((r) => ({ dia: r[0], n: Number(r[1]) || 0, d: lerDataHora(r[0]) })).filter((x) => x.d).sort((a, b) => b.d - a.d);
+  }
+
+  async function carregarPacotes(diaTxt) {
+    const D = lerDataHora(diaTxt);
+    const dias = [D, somaDias(D, 1), somaDias(D, 2)];
+    // 1) faltantes do dia na aba Aduana
+    const sc = await esquema('Aduana');
+    const cData = sc.por('Data auditoria'), cEst = sc.por('Estado');
+    const { cols, rows } = await gviz('Aduana', 'select * where ' + condDias(cData, [D]) + ' and ' + cEst.id + " = 'Faltante'");
+    const falt = new Map();
+    for (const r of rows) {
+      const o = {}; cols.forEach((c, k) => { if (c.label) o[c.label] = r[k]; });
+      const id = String(o['Shipment ID'] || '').trim();
+      if (!/^\d+$/.test(id)) continue;
+      if (!falt.has(id)) falt.set(id, { aduana: o, vezes: 0 });
+      falt.get(id).vezes++;
+    }
+    const ids = [...falt.keys()];
+    if (!ids.length) return [];
+
+    // 2) todos os registros desses pacotes, em todas as abas
+    const porFonte = {};
+    const erros = [];
+    await Promise.all(Object.keys(FONTES).map(async (fonte) => {
+      try { porFonte[fonte] = await linhasPorIds(fonte, ids, dias); }
+      catch (e) { if (e instanceof ErroAcesso) throw e; porFonte[fonte] = []; erros.push(e.message); }
+    }));
+    S.avisos = erros;
+
+    // 3) eventos por pacote
+    const eventos = new Map(ids.map((id) => [id, []]));
+    for (const [fonte, linhas] of Object.entries(porFonte)) {
+      const f = FONTES[fonte];
+      for (const o of linhas) {
+        const id = String(o[f.id] || '').trim();
+        if (!eventos.has(id)) continue;
+        const g = (k) => String(o[k] == null ? '' : o[k]).trim();
+        const quando = f.quando ? lerDataHora(g(f.quando)) : lerDataHora(g(f.data), f.hora ? g(f.hora) : '');
+        if (!quando) continue;
+        const texto = f.texto(g);
+        eventos.get(id).push({ quando, fonte, texto, dados: o, chave: fonte + '|' + quando.getTime() + '|' + texto });
+      }
+    }
+
+    // 4) janela: conteinerização no dia D + 36 h
+    const pacotes = [];
+    for (const [id, { aduana, vezes }] of falt) {
+      const todos = eventos.get(id).sort((a, b) => a.quando - b.quando);
+      const vistas = new Set();
+      const unicos = todos.filter((e) => (vistas.has(e.chave) ? false : vistas.add(e.chave)));
+      const cont = unicos.find((e) => e.fonte === 'historico' && norm(e.dados['Processo']) === 'containerize' && dmy(e.quando) === diaTxt);
+      const inicio = cont ? cont.quando : new Date(D);
+      const fim = new Date(inicio.getTime() + CONFIG.JANELA_HORAS * 3600 * 1000);
+      const ev = unicos.filter((e) => e.quando >= inicio && e.quando <= fim);
+      const p = { id, dia: diaTxt, aduana, vezesFaltante: vezes, temConteinerizacao: !!cont, ancora: cont || null, inicio, fim, eventos: ev,
+        rota: aduana['ID da rota'] || '', horaAduana: aduana['Hora'] || '', rep: aduana['Rep auditoria'] || '' };
+      p.regra = window.REGRAS ? window.REGRAS.classificar(p) : { resultado: 'Regra em aberto', regra: '', detalhe: 'regras.js não carregou' };
+      pacotes.push(p);
+    }
+    return pacotes;
+  }
+
+  async function carregarManual() {
+    const m = new Map();
+    try {
+      const { cols, rows } = await gviz('Classificação manual', 'select *');
+      const i = (n) => cols.findIndex((c) => norm(c.label) === norm(n));
+      const [iD, iS, iC, iR, iQ] = ['Data', 'Shipment ID', 'Classificação', 'Raciocínio', 'Quem classificou'].map(i);
+      for (const r of rows) {
+        const id = String(r[iS] || '').trim(); const cl = String(r[iC] || '').trim();
+        if (!id || !cl) continue;
+        const dia = String(r[iD] || '').trim();
+        const v = { classificacao: cl, raciocinio: iR >= 0 ? r[iR] : '', quem: iQ >= 0 ? r[iQ] : '' };
+        m.set((dia || '*') + '|' + id, v);
+      }
+    } catch (e) { if (e instanceof ErroAcesso) throw e; /* aba ainda vazia ou inexistente */ }
+    return m;
+  }
+  const manualDe = (p) => S.manual.get(p.dia + '|' + p.id) || S.manual.get('*|' + p.id) || null;
+  const resultado = (p) => { const m = manualDe(p); return m ? m.classificacao : p.regra.resultado; };
+
+  /* ===================== BIPES NOVOS (desde a última visita, guardado no navegador) ===================== */
+  const chaveVistos = () => 'pf-vistos-' + S.dia;
+  function lerVistos() { try { const v = localStorage.getItem(chaveVistos()); return v ? new Set(JSON.parse(v)) : null; } catch (e) { return null; } }
+  function salvarVistos() {
+    if (!S.pacotes.length) return;
+    try { localStorage.setItem(chaveVistos(), JSON.stringify(S.pacotes.flatMap((p) => p.eventos.map((e) => p.id + '|' + e.chave)))); } catch (e) {}
+  }
+  const ehNovo = (p, e) => !!S.vistosAntes && !S.vistosAntes.has(p.id + '|' + e.chave);
+
+  /* ===================== TELA ===================== */
+  const COR = (r) => /erro/i.test(r) ? 'var(--bad)' : /perdid|avaria/i.test(r) ? 'var(--warn)' : /ok\b|deslocado/i.test(r) ? 'var(--ok)' : /em aberto/i.test(r) ? 'var(--open)' : 'var(--accent)';
+
+  function render() {
+    const m = $('#conteudo');
+    if (!S.dia) { m.innerHTML = ''; return; }
+    const ps = S.pacotes;
+    const nSem = ps.filter((p) => !p.temConteinerizacao).length;
+    const nAberto = ps.filter((p) => /em aberto/i.test(resultado(p))).length;
+    const nMan = ps.filter((p) => manualDe(p)).length;
+    const nNovos = ps.reduce((a, p) => a + p.eventos.filter((e) => ehNovo(p, e)).length, 0);
+    const pacNovos = ps.filter((p) => p.eventos.some((e) => ehNovo(p, e))).length;
+
+    const grupos = new Map();
+    for (const p of ps) { const r = resultado(p); grupos.set(r, (grupos.get(r) || 0) + 1); }
+    const lista = [...grupos.entries()].sort((a, b) => b[1] - a[1]);
+    const max = Math.max(1, ...lista.map((x) => x[1]));
+
+    const q = norm(S.busca);
+    const visiveis = ps.filter((p) => (!S.filtro || resultado(p) === S.filtro) &&
+      (!q || norm(p.id + ' ' + p.rota + ' ' + p.rep + ' ' + resultado(p)).includes(q)))
+      .sort((a, b) => (Number(b.eventos.some((e) => ehNovo(b, e))) - Number(a.eventos.some((e) => ehNovo(a, e)))) || resultado(a).localeCompare(resultado(b)) || a.rota.localeCompare(b.rota));
+
+    const avisos = (S.avisos || []).length ? '<p class="msg err">Algumas abas não foram lidas: ' + esc(S.avisos.join(' · ')) + '</p>' : '';
+    m.innerHTML = avisos +
+      '<p class="lead">Em <b>' + esc(S.dia) + '</b> a aduana teve <b>' + fmt(ps.length) + '</b> pacotes faltantes. ' +
+      'A linha do tempo de cada um começa no bipe de conteinerização desse dia e vai até ' + CONFIG.JANELA_HORAS + ' h depois.' +
+      (nSem ? ' <b>' + fmt(nSem) + '</b> não tiveram conteinerização no dia (a linha do tempo começa à 00:00).' : '') + '</p>' +
+      '<section class="tiles">' +
+        tile('Faltantes', ps.length, 'pacotes únicos na aduana') +
+        tile('Com conteinerização no dia', ps.length - nSem, 'ponto de partida no Histórico') +
+        tile('Sem conteinerização no dia', nSem, 'vale conferir', nSem ? 'bad' : '') +
+        tile('Regra em aberto', nAberto, 'sem classificação automática') +
+        tile('Classificados por você', nMan, 'aba Classificação manual', 'man') +
+        tile('Bipes novos', nNovos, S.vistosAntes ? 'desde a sua última visita · ' + fmt(pacNovos) + ' pacotes' : 'primeira visita neste navegador', nNovos ? 'new' : '') +
+      '</section>' +
+      '<section class="card"><h2>Resultado de cada faltante</h2><p class="note">Clique numa barra para filtrar a tabela. O roxo "manual" é o que você escreveu na aba Classificação manual, que sempre vence a regra.</p><div class="bars">' +
+        lista.map(([r, n]) => '<button type="button" class="row' + (S.filtro === r ? ' sel' : S.filtro ? ' dim' : '') + '" data-r="' + esc(r) + '"><span class="t">' + esc(r) + '</span><span class="track"><span class="fill" style="display:block;width:' + (100 * n / max) + '%;background:' + COR(r) + '"></span></span><span class="n">' + fmt(n) + '</span></button>').join('') +
+      '</div></section>' +
+      '<section class="card" id="tabela"><div class="tools"><h2>Pacote a pacote</h2><input id="busca" type="search" placeholder="Buscar shipment, rota, rep…" value="' + esc(S.busca) + '" aria-label="Buscar"></div>' +
+        '<p class="note">Mostrando <b>' + esc(S.filtro || 'todos os resultados') + '</b> · ' + fmt(visiveis.length) + ' pacotes' + (S.filtro ? ' · <button type="button" class="chip" id="limpar">Mostrar todos</button>' : '') +
+        ' · Bipes em <span style="background:var(--new-bg);color:var(--new-fg);padding:0 4px;border-radius:3px">amarelo</span> são novos desde a sua última visita.</p>' +
+        '<div class="scroll"><table><thead><tr><th>Shipment</th><th>Rota · aduana</th><th>Resultado</th><th>Linha do tempo (conteinerização + ' + CONFIG.JANELA_HORAS + ' h)</th><th></th></tr></thead><tbody>' +
+        (visiveis.length ? visiveis.map(linhaPacote).join('') : '<tr><td colspan="5" class="empty">Nenhum pacote.</td></tr>') +
+        '</tbody></table></div></section>';
+
+    m.querySelectorAll('.row').forEach((b) => b.onclick = () => { S.filtro = S.filtro === b.dataset.r ? null : b.dataset.r; render(); if (S.filtro) $('#tabela').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    const l = $('#limpar'); if (l) l.onclick = () => { S.filtro = null; render(); };
+    const bx = $('#busca'); let tm;
+    bx.oninput = () => { clearTimeout(tm); tm = setTimeout(() => { S.busca = bx.value; const pos = bx.selectionStart; render(); const nb = $('#busca'); nb.focus(); nb.setSelectionRange(pos, pos); }, 250); };
+  }
+
+  function tile(lbl, val, sub, cls) { return '<div class="tile ' + (cls || '') + '"><div class="lbl">' + esc(lbl) + '</div><div class="val">' + fmt(val) + '</div><div class="sub">' + esc(sub) + '</div></div>'; }
+
+  function linhaPacote(p) {
+    const man = manualDe(p);
+    const novos = p.eventos.filter((e) => ehNovo(p, e)).length;
+    const res = '<td class="res">' + esc(resultado(p)) + (man ? '<span class="pill man">manual</span>' : '') +
+      (man && man.raciocinio ? '<span class="sub">' + esc(man.raciocinio) + '</span>' : '') +
+      (man && p.regra.resultado !== man.classificacao ? '<span class="sub">Regra: ' + esc(p.regra.resultado) + '</span>' : '') +
+      (!man && p.regra.regra ? '<span class="sub">' + esc(p.regra.regra) + '</span>' : '') +
+      (!man && p.regra.detalhe ? '<span class="sub">' + esc(p.regra.detalhe) + '</span>' : '') + '</td>';
+    const tl = p.eventos.length ? '<ol>' + p.eventos.map((e) => '<li class="' + (ehNovo(p, e) ? 'novo ' : '') + (e === p.ancora ? 'ancora' : '') + '"><span class="q">' + curto(e.quando) + '</span><span class="src ' + e.fonte + '">' + esc(FONTES[e.fonte].nome) + '</span><span>' + esc(e.texto) + '</span></li>').join('') + '</ol>' : '<span class="sub">Nenhum registro na janela.</span>';
+    const link = 'https://docs.google.com/spreadsheets/d/' + CONFIG.PLANILHA + '/edit#gid=' + CONFIG.GID_CLASSIFICACAO;
+    return '<tr><td class="mono">' + esc(p.id) + (novos ? '<span class="pill novo">' + novos + ' novo' + (novos > 1 ? 's' : '') + '</span>' : '') +
+      (p.temConteinerizacao ? '' : '<span class="pill sem">sem conteinerização</span>') + '</td>' +
+      '<td class="mono">' + esc(p.rota) + '<span class="sub">' + esc(p.horaAduana.slice(0, 5)) + ' · ' + esc(p.rep) + '</span>' + (p.vezesFaltante > 1 ? '<span class="sub">faltante ' + p.vezesFaltante + 'x no dia</span>' : '') + '</td>' +
+      res + '<td class="tl">' + tl + '</td>' +
+      '<td><a href="' + link + '" target="_blank" rel="noopener" title="Escreva na aba: Data ' + esc(p.dia) + ' · Shipment ' + esc(p.id) + '">Classificar ↗</a></td></tr>';
+  }
+
+  function aviso(t, erro) { const el = $('#msg'); el.textContent = t || ''; el.hidden = !t; el.classList.toggle('err', !!erro); }
+  function status(estado) {
+    $('#dot').className = 'dot' + (estado === 'ok' ? '' : estado === 'load' ? ' load' : ' off');
+    $('#atualizado').textContent = estado === 'load' ? 'Atualizando…' : S.ultima ? 'Atualizado às ' + hm(S.ultima) : 'Sem dados';
+  }
+
+  function desenharDias() {
+    const sel = $('#selDia');
+    sel.innerHTML = S.dias.map((d) => '<option value="' + esc(d.dia) + '"' + (d.dia === S.dia ? ' selected' : '') + '>' + esc(d.dia) + ' · ' + fmt(d.n) + ' faltantes</option>').join('');
+  }
+
+  async function atualizar() {
+    if (S.carregando) return;
+    S.carregando = true; status('load'); $('#btnAtualizar').disabled = true;
+    try {
+      await carregarDias();
+      if (!S.dias.length) { aviso('Ainda não há faltantes na aba Aduana.'); S.dia = null; S.pacotes = []; render(); return; }
+      if (!S.dia || !S.dias.some((d) => d.dia === S.dia)) S.dia = (location.hash.slice(1) && S.dias.find((d) => d.dia === decodeURIComponent(location.hash.slice(1))) || S.dias[0]).dia;
+      desenharDias();
+      const [pacotes, manual] = await Promise.all([carregarPacotes(S.dia), carregarManual()]);
+      S.pacotes = pacotes; S.manual = manual;
+      if (S.vistosAntes === null) { S.vistosAntes = lerVistos(); if (!S.vistosAntes) salvarVistos(); }
+      S.ultima = new Date();
+      aviso('');
+      render(); status('ok');
+    } catch (e) {
+      console.error(e);
+      aviso((e instanceof ErroAcesso ? '' : 'Não foi possível atualizar: ') + e.message + (S.pacotes.length ? ' Mantendo os últimos dados.' : ''), true);
+      status('erro');
+    } finally {
+      S.carregando = false; $('#btnAtualizar').disabled = false;
+    }
+  }
+
+  /* ===================== EVENTOS ===================== */
+  $('#lnkPlanilha').href = 'https://docs.google.com/spreadsheets/d/' + CONFIG.PLANILHA + '/edit#gid=' + CONFIG.GID_CLASSIFICACAO;
+  $('#rodape').textContent = 'Dados ao vivo da planilha "Conteneirização de Pacotes - Base SSP53". Atualiza sozinho a cada ' + CONFIG.ATUALIZAR_MIN + ' min. Regras: ' + (window.REGRAS ? window.REGRAS.versao : '—') + '.';
+  $('#btnAtualizar').onclick = atualizar;
+  $('#selDia').onchange = (e) => { salvarVistos(); S.dia = e.target.value; S.vistosAntes = null; S.filtro = null; S.pacotes = []; history.replaceState(null, '', '#' + encodeURIComponent(S.dia)); atualizar(); };
+  $('#btnVisto').onclick = () => { salvarVistos(); S.vistosAntes = lerVistos(); render(); };
+  $('#btnTema').onclick = () => {
+    const atual = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.dataset.theme = atual === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('pf-tema', document.documentElement.dataset.theme); } catch (e) {}
+  };
+  try { const t = localStorage.getItem('pf-tema'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  addEventListener('pagehide', salvarVistos);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) salvarVistos(); else atualizar(); });
+  setInterval(() => { if (!document.hidden) atualizar(); }, CONFIG.ATUALIZAR_MIN * 60 * 1000);
+  atualizar();
+})();
+</script>
+</body>
+</html>
