@@ -13,3 +13,7 @@
 | 07/11/2026 | Problem Solving: chave = nº do caso, e o caso é atualizado quando muda | O mesmo caso aparece em vários exports com estado diferente |
 | 07/11/2026 | Tipo do pacote em branco por enquanto | O Rafael vai trazer uma aba que diferencia separável × volumoso |
 | 07/11/2026 | Excluídas as colunas vazias L–Z da aba Histórico (Conteneirização) | Liberou ~3,7 milhões de células; a planilha caiu de ~8,7 para ~5 milhões. O script do Histórico só escreve até K |
+| 07/11/2026 | Painel = Web App do Apps Script (e não GitHub Pages) | A planilha é da conta DHL e só compartilhada com dhl.com; deixá-la pública exporia dados da empresa |
+| 07/11/2026 | Faltantes = aba Aduana, Estado "Faltante" no dia; linha do tempo = 1º bipe de conteinerização do dia (Histórico) + 36 h | Decisão do Rafael: a análise é diária e começa na conteinerização |
+| 07/11/2026 | Separáveis e volumosos numa lista só; Tratativas fora por enquanto | Ainda não há aba de tipo na planilha nova; Tratativas só existe na planilha antiga |
+| 07/11/2026 | Regras antigas aposentadas; painel sai com "Regra em aberto" e classificação manual no próprio painel | O Rafael vai mandar regras novas, iguais para os dois tipos |

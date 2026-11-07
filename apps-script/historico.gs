@@ -73,7 +73,10 @@ function chave(linha) {
 }
 
 // Rode UMA vez para ativar a execução automática
+// Só apaga o PRÓPRIO gatilho (a versão antiga apagava todos, inclusive os do importador e do painel)
 function criarGatilho() {
-  ScriptApp.getProjectTriggers().forEach(t => ScriptApp.deleteTrigger(t));
+  ScriptApp.getProjectTriggers()
+    .filter(t => t.getHandlerFunction() === 'importarNovasLinhas')
+    .forEach(t => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger('importarNovasLinhas').timeBased().everyMinutes(INTERVALO_MIN).create();
 }

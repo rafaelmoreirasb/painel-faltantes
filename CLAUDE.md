@@ -11,7 +11,8 @@ O painel precisa se atualizar sozinho: um bipe que entra à noite tem que aparec
 ```
 CLAUDE.md          este arquivo (contexto que toda conversa nova lê)
 apps-script/       scripts do Google Apps Script (cópia fiel do que está instalado)
-painel/            painel HTML público (GitHub Pages)
+apps-script/painel/  O PAINEL: Web App do Apps Script (Painel.gs, Painel.html, Regras.html) — ver docs/painel.md
+painel/            só um aviso no GitHub Pages apontando para o Web App
 regras/REGRAS.md   regras de classificação — fonte da verdade
 docs/decisoes.md   registro das decisões
 ```
@@ -22,7 +23,7 @@ atualize os arquivos do repositório — é aqui que o conhecimento fica, não n
 ## Planilhas (Google Sheets)
 | Planilha | ID | Abas |
 |---|---|---|
-| **Conteneirização de Pacotes - Base SSP53** (PRINCIPAL — conta pessoal do Rafael; recebe o importador e será lida pelo painel) | `1nDqe83XDoY-A3u6rNxaMP2RT74mZNjrYSDUY2c9dKhk` | Histórico (~245 mil linhas), Direcionamento Manual, Torre Aduana, Inventário (~154 mil), Auditoria de Carrinho, Problem Solving, Aduana |
+| **Conteneirização de Pacotes - Base SSP53** (PRINCIPAL — dona: rafael.dasilvabarbosa@dhl.com, compartilhada com dhl.com; recebe o importador e é lida pelo painel) | `1nDqe83XDoY-A3u6rNxaMP2RT74mZNjrYSDUY2c9dKhk` | Histórico (~245 mil linhas), Direcionamento Manual, Torre Aduana, Inventário (~154 mil), Auditoria de Carrinho, Problem Solving, Aduana |
 | Base Mirassol SSP53 (antiga; usada pelo painel antigo) | `1z3Qm-qR6kymLBBOSuw7Yh-LLdOvfkR-pyTfgIBUBIQM` | Histórico, Solução de Problemas, Torre de Aduana, Inventário, One Bipe, Tratativas, Aduana, Auditoria de Carrinho, Justificativas |
 | Origem do Histórico (Labor) | `1O4clXDtcty6TiCVsBXFu0I45Hv9LSysBoI70M4Kd6qc` | gid=0 |
 | Origem do Direcionamento Manual | `1No0tZ8yI7HJpKV2V2_PgKqIBpHXVlbTKsdy-lhBzkYk` | gid=1903954199 |
@@ -35,7 +36,8 @@ atualize os arquivos do repositório — é aqui que o conhecimento fica, não n
 | Sorting | query automática (já aparece na planilha) |
 | Aduana, Auditoria de Carrinho, Problem Solving | Rafael exporta 3 CSV por dia e joga na pasta do Drive **Faltantes – Entrada** → `apps-script/importar-relatorios.gs` (a cada 15 min; ver `docs/importador.md`). Quando o acesso às queries sair, desligar esse gatilho. |
 | Inventário, Tratativas | já se atualizam sozinhos |
-| Torre de Aduana | ? (confirmar com o Rafael) |
+| Torre Aduana | ? (confirmar com o Rafael) |
+| Classificação manual | o Rafael classifica no painel (ou direto na aba); o painel grava Data, Shipment ID, Classificação, Raciocínio, Quem classificou |
 
 **Retenção:** a planilha principal guarda só os últimos **15 dias** dessas 3 abas; toda madrugada o resto vai para
 `Arquivo Faltantes AAAA-MM` (pasta "Faltantes – Arquivo"). Motivo: limite de 10 milhões de células do Google
@@ -49,8 +51,15 @@ Tipo do pacote / Tipo ficam em branco até chegar a aba que diferencia separáve
 
 ## Regras de trabalho
 - Scripts Apps Script: sempre com trava (`LockService`), coluna `Chave` para não duplicar, `Importado em`, e um gatilho de 15 min criado por função `criarGatilho…` que só mexe no próprio gatilho. O Apps Script do Rafael está em **inglês** (Executions, Triggers, Time-driven).
-- Painel: nunca baixar a aba Histórico inteira; ler pela consulta `gviz/tq` com filtro de data.
-- Planilha pública: contém nomes de funcionários; não adicionar dados pessoais além do necessário.
+- **Painel = Web App do Apps Script** (planilha é da conta DHL rafael.dasilvabarbosa@dhl.com, compartilhada só com o
+  domínio dhl.com — NÃO é pública; a consulta pública `gviz` não funciona). Publicado com "Execute as: Me" e
+  "Anyone within DHL Group". Todo código do painel fica num objeto `PainelFaltantes` + funções soltas com prefixo
+  `painel…`, porque divide o projeto (e o espaço de nomes global) com o importador e possivelmente o script do Histórico.
+- Painel lê só o trecho de linhas dos dias D..D+2 (acha pela coluna de data) e guarda o resultado 5 min no CacheService.
+- Regras: `regras/REGRAS.md` (português) → `apps-script/painel/Regras.html` (`classificar(pacote)`). Regras antigas (14) NÃO
+  são usadas; o Rafael vai mandar regras novas, iguais para separáveis e volumosos.
+- Testes locais: o servidor do painel e o importador rodam no Node com SpreadsheetApp simulado e os CSV/dados reais;
+  a tela roda no Playwright com `google.script.run` simulado.
 - Painel antigo (privado, artefato): https://claude.ai/artifact/EECm1GZo8moU2ETjCFQwVv — classificações manuais na coleção `classificacoes` (migrar para a aba `Classificação manual`).
 - Fluxograma de regras (artefato): https://claude.ai/artifact/Wo4o8nWo5fQjjb8ntuff5x
 - Scripts também salvos no Drive, pasta "Scripts Apps Script": https://drive.google.com/drive/folders/14z5V6KUpciDmXu3FVkzsbKU_JOIeN27R

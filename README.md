@@ -6,4 +6,4 @@ pelas regras em [`regras/REGRAS.md`](regras/REGRAS.md). Os dados vêm do Google 
 
 - Contexto e organização: [`CLAUDE.md`](CLAUDE.md)
 - Decisões: [`docs/decisoes.md`](docs/decisoes.md)
-- Painel: [`painel/`](painel/) (publicado via GitHub Pages)
+- Painel: Web App do Google Apps Script — código em [`apps-script/painel/`](apps-script/painel/), instalação em [`docs/painel.md`](docs/painel.md)
