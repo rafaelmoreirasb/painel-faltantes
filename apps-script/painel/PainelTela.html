@@ -87,6 +87,8 @@
   .st { font-size: 11px; color: var(--muted); display: block; min-height: 1em; }
   .st.err { color: var(--bad); }
   th.ed { color: var(--man); }
+  .pill.aberta { color: var(--warn); } .pill.ini { color: var(--accent); margin-left: 0; }
+  table.tr tr.off td { opacity: .55; } table.tr td.n { text-align: right; font-variant-numeric: tabular-nums; }
 </style>
 
 </head>
@@ -135,17 +137,17 @@
   const chamar = (fn, ...args) => new Promise((ok, erro) => google.script.run.withSuccessHandler(ok).withFailureHandler(erro)[fn](...args));
 
   /* ---------- estado ---------- */
-  const S = { dias: [], dia: null, pacotes: [], manual: {}, filtro: null, busca: '', vistosAntes: null, carregando: false, ultima: null, avisos: [], url: '', segundos: 0 };
+  const S = { dias: [], dia: null, pacotes: [], manual: {}, filtro: null, busca: '', vistosAntes: null, carregando: false, ultima: null, avisos: [], url: '', segundos: 0, regras: [], abaRegras: true };
   const manualDe = (p) => S.manual[p.dia + '|' + p.id] || S.manual['*|' + p.id] || null;
   const resultado = (p) => { const m = manualDe(p); return m && m.classificacao ? m.classificacao : p.regra.resultado; };
 
   /* ---------- dados (vêm do servidor: Painel.gs) ---------- */
-  function prepararPacotes(dados) {
+  function prepararPacotes(dados, regras) {
     return dados.pacotes.map((p) => {
       p.inicio = new Date(p.inicio); p.fim = new Date(p.fim);
       p.eventos.forEach((e) => { e.quando = new Date(e.t); });
       p.ancora = p.eventos.find((e) => e.chave === p.ancora) || null;
-      try { p.regra = window.REGRAS.classificar(p); } catch (e) { p.regra = { resultado: 'Regra em aberto', regra: '', detalhe: 'Erro nas regras: ' + e.message }; }
+      try { p.regra = window.REGRAS.classificar(p, regras); } catch (e) { p.regra = { resultado: 'Regra em aberto', codigo: '', regra: '', detalhe: 'Erro nas regras: ' + e.message }; }
       return p;
     });
   }
@@ -162,7 +164,8 @@
       }
       desenharDias();
       const r = JSON.parse(await chamar('painelDadosDoDia', S.dia, !!forcar));
-      S.pacotes = prepararPacotes(r.dados); S.manual = r.manual || {}; S.avisos = r.dados.avisos || []; S.url = r.url; S.segundos = r.dados.segundos;
+      S.abaRegras = Array.isArray(r.regras); S.regras = window.REGRAS.montar(r.regras);
+      S.pacotes = prepararPacotes(r.dados, S.regras); S.manual = r.manual || {}; S.avisos = r.dados.avisos || []; S.url = r.url; S.segundos = r.dados.segundos;
       S.geradoEm = new Date(r.dados.geradoEm);
       $('#lnkPlanilha').href = S.url;
       if (S.vistosAntes === null) { S.vistosAntes = lerVistos(); if (!S.vistosAntes) salvarVistos(); }
@@ -213,7 +216,8 @@
     // guarda o foco (o usuário pode estar digitando)
     const ae = document.activeElement, aid = ae && ae.id, aval = ae && 'value' in ae ? ae.value : null, apos = ae && ae.selectionStart;
     const ps = S.pacotes;
-    const nSem = ps.filter((p) => !p.temConteinerizacao).length;
+    const nSem = ps.filter((p) => !p.temSorting).length;
+    const nAbertas = ps.filter((p) => !p.janelaFechada).length;
     const nAberto = ps.filter((p) => /em aberto/i.test(resultado(p))).length;
     const nMan = ps.filter((p) => manualDe(p) && manualDe(p).classificacao).length;
     const nNovos = ps.reduce((a, p) => a + p.eventos.filter((e) => ehNovo(p, e)).length, 0);
@@ -229,12 +233,13 @@
 
     $('#lista-res').innerHTML = [...new Set([...SUGESTOES, ...Object.values(S.manual).map((v) => v.classificacao).filter(Boolean)])].map((s) => '<option value="' + esc(s) + '">').join('');
     m.innerHTML = (S.avisos.length ? '<p class="msg err">Atenção: ' + esc(S.avisos.join(' · ')) + '</p>' : '') +
-      '<p class="lead">Em <b>' + esc(S.dia) + '</b> a aduana teve <b>' + fmt(ps.length) + '</b> pacotes faltantes. A linha do tempo de cada um começa no primeiro bipe de conteinerização do dia e vai até ' + CONFIG.JANELA_HORAS + ' h depois.' +
-      (nSem ? ' <b>' + fmt(nSem) + '</b> não tiveram conteinerização no dia (a linha do tempo começa à 00:00).' : '') + '</p>' +
+      '<p class="lead">Em <b>' + esc(S.dia) + '</b> a aduana teve <b>' + fmt(ps.length) + '</b> pacotes faltantes. A linha do tempo de cada um começa no <b>sorting</b> (primeiro bipe do pacote no dia na aba Histórico) e vai até ' + CONFIG.JANELA_HORAS + ' h depois; passado esse prazo, não entra mais nada.' +
+      (nSem ? ' <b>' + fmt(nSem) + '</b> não tiveram bipe no Histórico no dia (a linha do tempo começa à 00:00).' : '') +
+      (nAbertas ? ' <b>' + fmt(nAbertas) + '</b> ainda estão dentro das ' + CONFIG.JANELA_HORAS + ' h e podem receber bipes novos.' : ' A janela de ' + CONFIG.JANELA_HORAS + ' h de todos já encerrou.') + '</p>' +
       '<section class="tiles">' +
         tile('Faltantes', ps.length, 'pacotes únicos na aduana') +
-        tile('Com conteinerização no dia', ps.length - nSem, 'ponto de partida no Histórico') +
-        tile('Sem conteinerização no dia', nSem, 'vale conferir', nSem ? 'bad' : '') +
+        tile('Com sorting no dia', ps.length - nSem, 'ponto de partida no Histórico') +
+        tile('Sem sorting no dia', nSem, 'vale conferir', nSem ? 'bad' : '') +
         tile('Regra em aberto', nAberto, 'sem classificação') +
         tile('Classificados por você', nMan, 'classificação manual', 'man') +
         tile('Bipes novos', nNovos, S.vistosAntes ? 'desde a sua última visita · ' + fmt(pacNovos) + ' pacotes' : 'primeira visita neste navegador', nNovos ? 'new' : '') +
@@ -242,10 +247,11 @@
       '<section class="card"><h2>Resultado de cada faltante</h2><p class="note">Clique numa barra para filtrar a tabela. Sua classificação manual sempre vence a regra.</p><div class="bars">' +
         lista.map(([r, n]) => '<button type="button" class="row' + (S.filtro === r ? ' sel' : S.filtro ? ' dim' : '') + '" data-r="' + esc(r) + '"><span class="t">' + esc(r) + '</span><span class="track"><span class="fill" style="display:block;width:' + (100 * n / max) + '%;background:' + COR(r) + '"></span></span><span class="n">' + fmt(n) + '</span></button>').join('') +
       '</div></section>' +
+      cartaoRegras() +
       '<section class="card" id="tabela"><div class="tools"><h2>Pacote a pacote</h2><input id="busca" type="search" placeholder="Buscar shipment, rota, rep…" value="' + esc(S.busca) + '" aria-label="Buscar"></div>' +
         '<p class="note">Mostrando <b>' + esc(S.filtro || 'todos os resultados') + '</b> · ' + fmt(visiveis.length) + ' pacotes' + (S.filtro ? ' · <button type="button" class="chip" id="limpar">Mostrar todos</button>' : '') +
         ' · Bipes em <span style="background:var(--new-bg);color:var(--new-fg);padding:0 4px;border-radius:3px">amarelo</span> são novos desde a sua última visita. Nas duas últimas colunas você classifica: salva sozinho ao sair do campo.</p>' +
-        '<div class="scroll"><table><thead><tr><th>Shipment</th><th>Rota · aduana</th><th>Resultado</th><th>Linha do tempo (conteinerização + ' + CONFIG.JANELA_HORAS + ' h)</th><th class="ed">Sua classificação</th></tr></thead><tbody>' +
+        '<div class="scroll"><table><thead><tr><th>Shipment</th><th>Rota · aduana</th><th>Resultado</th><th>Linha do tempo (sorting + ' + CONFIG.JANELA_HORAS + ' h)</th><th class="ed">Sua classificação</th></tr></thead><tbody>' +
         (visiveis.length ? visiveis.map(linhaPacote).join('') : '<tr><td colspan="5" class="empty">Nenhum pacote.</td></tr>') +
         '</tbody></table></div></section>';
 
@@ -260,6 +266,22 @@
     if (aid) { const el = document.getElementById(aid); if (el) { if (aval != null && el.value !== aval) el.value = aval; el.focus(); try { if (apos != null) el.setSelectionRange(apos, apos); } catch (e) {} } }
   }
 
+  /* Lista das regras em uso (vem da aba Regras) e quantos pacotes do dia caíram em cada uma. */
+  function cartaoRegras() {
+    const cont = {};
+    for (const p of S.pacotes) if (p.regra.codigo) cont[p.regra.codigo] = (cont[p.regra.codigo] || 0) + 1;
+    const link = S.url ? ' <a href="' + esc(S.url) + '" target="_blank" rel="noopener">Editar na planilha ↗</a>' : '';
+    const nota = !S.abaRegras
+      ? 'A aba <b>Regras</b> ainda não existe na planilha. No Apps Script, rode a função <b>painelCriarAbaRegras</b> uma vez.'
+      : 'Na aba <b>Regras</b> você muda a ordem, liga/desliga (coluna Ligada: Sim/Não) e o texto do resultado. A regra é testada de cima para baixo; a primeira que bater classifica o pacote. O que nenhuma cobrir fica <b>Regra em aberto</b>.' + link;
+    const linhas = S.regras.map((r) => '<tr' + (r.ligada && r.temLogica ? '' : ' class="off"') + '><td class="mono">' + esc(r.ordem || '') + '</td><td class="mono">' + esc(r.codigo) + '</td><td>' + esc(r.pergunta) +
+      (r.observacao ? '<span class="sub">' + esc(r.observacao) + '</span>' : '') + '</td><td>' + esc(r.resultado) + '</td><td>' + (r.ligada ? 'Sim' : 'Não') +
+      (r.temLogica ? '' : '<span class="sub st err">sem lógica ainda — pedir ao Claude</span>') + '</td><td class="n">' + fmt(cont[r.codigo] || 0) + '</td></tr>').join('');
+    return '<section class="card" id="regras"><h2>Regras em uso</h2><p class="note">' + nota + '</p>' +
+      (S.regras.length ? '<div class="scroll"><table class="tr"><thead><tr><th>Ordem</th><th>Código</th><th>Pergunta (se SIM, para aqui)</th><th>Resultado</th><th>Ligada</th><th>Pacotes hoje</th></tr></thead><tbody>' + linhas + '</tbody></table></div>'
+        : '<p class="note">Nenhuma regra cadastrada ainda — todos os faltantes ficam como Regra em aberto até você classificar.</p>') + '</section>';
+  }
+
   function tile(lbl, val, sub, cls) { return '<div class="tile ' + (cls || '') + '"><div class="lbl">' + esc(lbl) + '</div><div class="val">' + fmt(val) + '</div><div class="sub">' + esc(sub) + '</div></div>'; }
 
   function linhaPacote(p) {
@@ -271,11 +293,11 @@
       (!temMan && p.regra.regra ? '<span class="sub">' + esc(p.regra.regra) + '</span>' : '') +
       (!temMan && p.regra.detalhe ? '<span class="sub">' + esc(p.regra.detalhe) + '</span>' : '') +
       (temMan && man.quem ? '<span class="sub">por ' + esc(man.quem) + '</span>' : '') + '</td>';
-    const tl = p.eventos.length ? '<ol>' + p.eventos.map((e) => '<li class="' + (ehNovo(p, e) ? 'novo ' : '') + (e === p.ancora ? 'ancora' : '') + '"><span class="q">' + curto(e.quando) + '</span><span class="src ' + e.fonte + '">' + esc(NOMES[e.fonte] || e.fonte) + '</span><span>' + esc(e.texto) + '</span></li>').join('') + '</ol>' : '<span class="sub">Nenhum registro na janela.</span>';
+    const tl = p.eventos.length ? '<ol>' + p.eventos.map((e) => '<li class="' + (ehNovo(p, e) ? 'novo ' : '') + (e === p.ancora ? 'ancora' : '') + '"><span class="q">' + curto(e.quando) + '</span><span class="src ' + e.fonte + '">' + esc(NOMES[e.fonte] || e.fonte) + '</span><span>' + (e === p.ancora ? '<span class="pill ini">início</span> ' : '') + esc(e.texto) + '</span></li>').join('') + '</ol>' : '<span class="sub">Nenhum registro na janela.</span>';
     const ed = '<td class="ed"><input type="text" id="c-' + p.id + '" data-id="' + p.id + '" data-campo="classificacao" list="lista-res" placeholder="Escolha ou escreva" value="' + esc(man.classificacao || '') + '" aria-label="Classificação de ' + p.id + '"><span class="st" id="st-classificacao-' + p.id + '"></span>' +
       '<textarea id="r-' + p.id + '" data-id="' + p.id + '" data-campo="raciocinio" placeholder="O que você viu para chegar nessa classificação" aria-label="Raciocínio de ' + p.id + '">' + esc(man.raciocinio || '') + '</textarea><span class="st" id="st-raciocinio-' + p.id + '"></span></td>';
     return '<tr><td class="mono">' + esc(p.id) + (novos ? '<span class="pill novo">' + novos + ' novo' + (novos > 1 ? 's' : '') + '</span>' : '') +
-      (p.temConteinerizacao ? '' : '<span class="pill sem">sem conteinerização</span>') + '</td>' +
+      (p.temSorting ? '' : '<span class="pill sem">sem sorting no dia</span>') + (p.janelaFechada ? '' : '<span class="pill aberta">janela aberta até ' + curto(p.fim) + '</span>') + '</td>' +
       '<td class="rota"><b>' + esc(p.rota) + '</b><span class="sub">' + esc(String(p.horaAduana).slice(0, 5)) + ' · ' + esc(p.rep) + '</span>' + (p.vezesFaltante > 1 ? '<span class="sub">faltante ' + p.vezesFaltante + 'x no dia</span>' : '') + '</td>' +
       res + '<td class="tl">' + tl + '</td>' + ed + '</tr>';
   }
