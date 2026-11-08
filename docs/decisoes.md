@@ -18,3 +18,4 @@
 | 07/11/2026 | Separáveis e volumosos numa lista só; Tratativas fora por enquanto | Ainda não há aba de tipo na planilha nova; Tratativas só existe na planilha antiga |
 | 07/11/2026 | Regras antigas aposentadas; painel sai com "Regra em aberto" e classificação manual no próprio painel | O Rafael vai mandar regras novas, iguais para os dois tipos |
 | 08/11/2026 | Planilha fica na conta DHL (não copiar para a conta pessoal) | Uma cópia pessoal deixaria de receber dados novos e pode ir contra a política de dados da DHL; o Web App já resolve o acesso |
+| 08/11/2026 | Painel publicado (Web App, DHL) e validado: classificação gravada na aba Classificação manual com o e-mail de quem classificou | Teste do Rafael com o pacote 48392044463 (06/11) |
