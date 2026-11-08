@@ -49,6 +49,9 @@ Tipo do pacote. Auditoria de Carrinho: Shipment ID, Data, Hora, Gaiola, Estado, 
 Solving: mesmas colunas de antes (com "Hora","Data" no lugar de "Data","de") + ID do caso + Data de fechamento.
 Tipo do pacote / Tipo ficam em branco até chegar a aba que diferencia separável × volumoso.
 
+**Painel publicado (Web App):** https://script.google.com/a/macros/dhl.com/s/AKfycby_asEzOPexlsqS279IgK4b-SI8D6MHjAHx5eAeg5s5lBxOz8zQ-cqyy7tnNRNj2Vpq/exec
+(GitHub Pages https://rafaelmoreirasb.github.io/painel-faltantes/painel/ só redireciona para ele.)
+
 ## Regras de trabalho
 - Scripts Apps Script: sempre com trava (`LockService`), coluna `Chave` para não duplicar, `Importado em`, e um gatilho de 15 min criado por função `criarGatilho…` que só mexe no próprio gatilho. O Apps Script do Rafael está em **inglês** (Executions, Triggers, Time-driven).
 - **Painel = Web App do Apps Script** (planilha é da conta DHL rafael.dasilvabarbosa@dhl.com, compartilhada só com o

@@ -3,6 +3,8 @@
 O painel é um site do **Google Apps Script** que roda com a sua conta. A planilha
 **Conteneirização de Pacotes - Base SSP53** continua privada: só quem estiver logado com conta da DHL abre o painel.
 
+**Link do painel:** https://script.google.com/a/macros/dhl.com/s/AKfycby_asEzOPexlsqS279IgK4b-SI8D6MHjAHx5eAeg5s5lBxOz8zQ-cqyy7tnNRNj2Vpq/exec
+
 Código: [`apps-script/painel/`](../apps-script/painel/) — 3 arquivos: `Painel.gs`, `PainelTela.html`, `Regras.html`.
 
 ## O que o painel mostra
