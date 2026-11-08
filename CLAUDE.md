@@ -38,7 +38,7 @@ atualize os arquivos do repositório — é aqui que o conhecimento fica, não n
 | Inventário, Tratativas | já se atualizam sozinhos |
 | Torre Aduana | ? (confirmar com o Rafael) |
 | Regras | o Rafael edita (ordem, liga/desliga, texto); criada por `painelCriarAbaRegras` |
-| Classificação manual | o Rafael classifica no painel (ou direto na aba); o painel grava Data, Shipment ID, Classificação, Raciocínio, Quem classificou |
+| Classificação manual | o Rafael classifica no painel (ou direto na aba); o painel grava Data, Shipment ID, Classificação, Raciocínio, Quem classificou, **Regra conferida** (F: regra que ele viu e decidiu não usar — conflito manual × regra) |
 
 **Retenção:** a planilha principal guarda só os últimos **15 dias** dessas 3 abas; toda madrugada o resto vai para
 `Arquivo Faltantes AAAA-MM` (pasta "Faltantes – Arquivo"). Motivo: limite de 10 milhões de células do Google

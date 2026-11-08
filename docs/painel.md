@@ -20,6 +20,11 @@ Código: [`apps-script/painel/`](../apps-script/painel/) — 3 arquivos: `Painel
   liga/desliga e o texto do resultado sozinho (ver `regras/REGRAS.md`).
 - **Sua classificação**: nas duas últimas colunas você escolhe/escreve a classificação e o raciocínio. Salva sozinho ao sair
   do campo, na aba **Classificação manual** (com o e-mail de quem classificou). Também dá para escrever direto na aba.
+- **Conflito: sua classificação × regra**: se um pacote tem classificação sua e uma regra passa a dizer outra coisa
+  (por exemplo, chegou um bipe novo), o painel **pergunta qual manter**: indicador "Para decidir", aviso no topo com
+  "Mostrar só os conflitos" e, no pacote, os botões **Manter a minha** (grava a regra na coluna F "Regra conferida" da
+  aba Classificação manual — não pergunta de novo, a não ser que a regra mude outra vez) e **Usar a regra** (apaga a sua
+  classificação; o raciocínio fica). Mudar o texto da sua classificação "zera" a decisão.
 - **Bipes novos** (amarelo): o que apareceu desde a última vez que você abriu o painel neste navegador.
 - **Rápido**: um gatilho (`painelPreparar`, a cada 5 min) deixa prontos os dias com faltantes dos últimos 4 dias. O painel
   abre em 1–2 s e mostra "Dados preparados às HH:MM". Dias mais antigos são calculados na 1ª vez (~10 s) e ficam guardados 6 h.

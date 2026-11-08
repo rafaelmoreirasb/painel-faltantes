@@ -251,38 +251,47 @@ const PainelFaltantes = (() => {
   function lerManual() {
     const aba = planilha().getSheetByName(CFG.ABA_MANUAL);
     if (!aba || aba.getLastRow() < 2) return {};
-    const v = aba.getRange(2, 1, aba.getLastRow() - 1, 5).getDisplayValues();
+    const v = aba.getRange(2, 1, aba.getLastRow() - 1, 6).getDisplayValues();
     const m = {};
     for (const r of v) {
       const id = String(r[1]).trim(), cl = String(r[2]).trim();
       if (!id || !cl) continue;
-      m[(diaDe(r[0]) || '*') + '|' + id] = { classificacao: cl, raciocinio: String(r[3]).trim(), quem: String(r[4]).trim() };
+      m[(diaDe(r[0]) || '*') + '|' + id] = { classificacao: cl, raciocinio: String(r[3]).trim(), quem: String(r[4]).trim(), regraConferida: String(r[5] || '').trim() };
     }
     return m;
   }
 
-  function salvarClassificacao(dia, id, classificacao, raciocinio) {
+  /**
+   * Grava (ou atualiza) a classificação manual de um pacote num dia.
+   * regraConferida (opcional): resultado da regra que o Rafael viu e decidiu NÃO usar ("Manter a minha").
+   * Se não vier: mantém o que já estava, a não ser que a classificação tenha mudado (aí limpa, para perguntar de novo).
+   */
+  function salvarClassificacao(dia, id, classificacao, raciocinio, regraConferida) {
     if (!diaDe(dia) || !/^\d+$/.test(String(id))) throw new Error('Dia ou shipment inválido.');
     const lock = LockService.getScriptLock();
     lock.waitLock(20000);
     try {
       const ss = planilha();
       let aba = ss.getSheetByName(CFG.ABA_MANUAL);
-      if (!aba) { aba = ss.insertSheet(CFG.ABA_MANUAL); aba.appendRow(['Data', 'Shipment ID', 'Classificação', 'Raciocínio', 'Quem classificou']); aba.setFrozenRows(1); }
+      const CAB = ['Data', 'Shipment ID', 'Classificação', 'Raciocínio', 'Quem classificou', 'Regra conferida'];
+      if (!aba) { aba = ss.insertSheet(CFG.ABA_MANUAL); aba.appendRow(CAB); aba.setFrozenRows(1); }
+      else if (String(aba.getRange(1, 6).getDisplayValue()).trim() !== CAB[5]) aba.getRange(1, 6).setValue(CAB[5]);
       let quem = '';
       try { quem = Session.getActiveUser().getEmail(); } catch (e) {}
-      const linha = [diaDe(dia), String(id), String(classificacao || '').trim(), String(raciocinio || '').trim(), quem || '(painel)'];
+      const linha = [diaDe(dia), String(id), String(classificacao || '').trim(), String(raciocinio || '').trim(), quem || '(painel)', ''];
       const n = aba.getLastRow();
-      let alvo = 0;
+      let alvo = 0, antes = null;
       if (n > 1) {
-        const v = aba.getRange(2, 1, n - 1, 2).getDisplayValues();
-        for (let i = v.length - 1; i >= 0; i--) if (diaDe(v[i][0]) === linha[0] && String(v[i][1]).trim() === linha[1]) { alvo = i + 2; break; }
+        const v = aba.getRange(2, 1, n - 1, 6).getDisplayValues();
+        for (let i = v.length - 1; i >= 0; i--) if (diaDe(v[i][0]) === linha[0] && String(v[i][1]).trim() === linha[1]) { alvo = i + 2; antes = v[i]; break; }
       }
+      if (regraConferida !== undefined && regraConferida !== null) linha[5] = String(regraConferida).trim();
+      else if (antes && String(antes[2]).trim() === linha[2]) linha[5] = String(antes[5] || '').trim();
       if (!alvo) alvo = n + 1;
-      const r = aba.getRange(alvo, 1, 1, 5);
+      const r = aba.getRange(alvo, 1, 1, 6);
       r.setNumberFormat('@');
       r.setValues([linha]);
-      return { ok: true, quem: linha[4] };
+      return { ok: true, quem: linha[4], regraConferida: linha[5] };
     } finally {
       lock.releaseLock();
     }
@@ -345,10 +354,10 @@ function painelPreparar() {
 function painelListarDias() { return PainelFaltantes.listarDias(); }
 function painelDadosDoDia(dia, forcar) {
   const d = PainelFaltantes.dadosDoDia(dia, !!forcar);
-  return JSON.stringify({ dados: d, manual: PainelFaltantes.lerManual(), regras: PainelFaltantes.lerRegras(), url: PainelFaltantes.planilha().getUrl() });
+  return JSON.stringify({ servidor: 2, dados: d, manual: PainelFaltantes.lerManual(), regras: PainelFaltantes.lerRegras(), url: PainelFaltantes.planilha().getUrl() }); // servidor 2 = guarda 'Regra conferida'
 }
-function painelSalvarClassificacao(dia, id, classificacao, raciocinio) {
-  return PainelFaltantes.salvarClassificacao(dia, id, classificacao, raciocinio);
+function painelSalvarClassificacao(dia, id, classificacao, raciocinio, regraConferida) {
+  return PainelFaltantes.salvarClassificacao(dia, id, classificacao, raciocinio, regraConferida);
 }
 /** Para testar no editor: escolha esta função e clique em Run. Mostra quantos faltantes e quanto tempo levou. */
 function painelTestar() {

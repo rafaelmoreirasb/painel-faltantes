@@ -121,6 +121,13 @@
   .st { font-size: 11px; color: var(--cinza-texto); display: block; min-height: 1em; }
   .st.err { color: var(--vermelho); }
   th.ed { background: var(--amarelo); color: var(--preto); }
+  .conflito { margin-top: 8px; padding: 10px 12px; background: var(--vermelho-claro); border-left: 4px solid var(--vermelho); border-radius: var(--raio); font-weight: 400; font-size: 13px; }
+  .conflito .botoes { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .conflito button { height: 32px; padding: 0 10px; font-size: 13px; }
+  .conflito button.usar { background: var(--vermelho); color: var(--branco); border-color: var(--vermelho); }
+  .aviso-conflito button { height: 32px; margin-left: 8px; font-size: 13px; }
+  td.res { max-width: 20rem !important; }
+  td.res:has(.conflito) { min-width: 17rem; }
   table.tr tr.off td { opacity: .55; } table.tr td.n { text-align: right; font-family: var(--f-mono); font-weight: 700; }
   @media (max-width: 700px) {
     .row { grid-template-columns: minmax(0, 9rem) 1fr 2.6rem; } .tile .val { font-size: 26px; }
@@ -180,7 +187,7 @@
   const chamar = (fn, ...args) => new Promise((ok, erro) => google.script.run.withSuccessHandler(ok).withFailureHandler(erro)[fn](...args));
 
   /* ---------- estado ---------- */
-  const S = { dias: [], dia: null, pacotes: [], manual: {}, filtro: null, busca: '', vistosAntes: null, carregando: false, ultima: null, avisos: [], url: '', segundos: 0, regras: [], abaRegras: true };
+  const S = { dias: [], dia: null, pacotes: [], manual: {}, filtro: null, busca: '', vistosAntes: null, carregando: false, ultima: null, avisos: [], url: '', segundos: 0, regras: [], abaRegras: true, servidor: 1, soConflitos: false };
   const manualDe = (p) => S.manual[p.dia + '|' + p.id] || S.manual['*|' + p.id] || null;
   const resultado = (p) => { const m = manualDe(p); return m && m.classificacao ? m.classificacao : p.regra.resultado; };
 
@@ -208,7 +215,7 @@
       desenharDias();
       const r = JSON.parse(await chamar('painelDadosDoDia', S.dia, !!forcar));
       S.abaRegras = Array.isArray(r.regras); S.regras = window.REGRAS.montar(r.regras);
-      S.pacotes = prepararPacotes(r.dados, S.regras); S.manual = r.manual || {}; S.avisos = r.dados.avisos || []; S.url = r.url; S.segundos = r.dados.segundos;
+      S.pacotes = prepararPacotes(r.dados, S.regras); S.manual = r.manual || {}; S.servidor = r.servidor || 1; S.avisos = r.dados.avisos || []; S.url = r.url; S.segundos = r.dados.segundos;
       S.geradoEm = new Date(r.dados.geradoEm);
       $('#lnkPlanilha').href = S.url;
       if (S.vistosAntes === null) { S.vistosAntes = lerVistos(); if (!S.vistosAntes) salvarVistos(); }
@@ -241,12 +248,50 @@
     st.textContent = 'Salvando…'; st.classList.remove('err');
     try {
       const r = await chamar('painelSalvarClassificacao', p.dia, p.id, novo.classificacao || '', novo.raciocinio || '');
-      novo.quem = r.quem;
+      novo.quem = r.quem; if (r.regraConferida !== undefined) novo.regraConferida = r.regraConferida;
       S.manual[p.dia + '|' + p.id] = novo;
       render();
       const s2 = document.getElementById('st-' + campo + '-' + p.id); if (s2) s2.textContent = 'Salvo';
     } catch (e) {
       st.textContent = 'Não salvou: ' + (e && e.message ? e.message : e); st.classList.add('err');
+    }
+  }
+
+  /* ---------- conflito: sua classificação × regra ---------- */
+  // "Regra conferida" = resultado de regra que você já viu e decidiu NÃO usar. Vem da planilha (Painel.gs novo)
+  // ou, com o Painel.gs antigo, fica guardado só neste navegador.
+  function conferidasLocais() { try { return JSON.parse(localStorage.getItem('pf-conferidas') || '{}'); } catch (e) { return {}; } }
+  function conferidaDe(p) {
+    const man = manualDe(p) || {};
+    if (S.servidor >= 2) return man.regraConferida || '';
+    return conferidasLocais()[p.dia + '|' + p.id] || '';
+  }
+  function conflito(p) {
+    const man = manualDe(p);
+    if (!man || !man.classificacao) return false;
+    const r = p.regra.resultado || '';
+    if (!r || /em aberto/i.test(r)) return false;
+    return norm(r) !== norm(man.classificacao) && norm(r) !== norm(conferidaDe(p));
+  }
+  async function decidir(p, acao, bt) {
+    const man = manualDe(p) || {};
+    const chave = p.dia + '|' + p.id;
+    bt.closest('.conflito').querySelectorAll('button').forEach((b) => { b.disabled = true; });
+    try {
+      if (acao === 'regra') {
+        await chamar('painelSalvarClassificacao', p.dia, p.id, '', man.raciocinio || '');
+        S.manual[chave] = Object.assign({}, man, { classificacao: '' });
+      } else if (S.servidor >= 2) {
+        const r = await chamar('painelSalvarClassificacao', p.dia, p.id, man.classificacao, man.raciocinio || '', p.regra.resultado);
+        S.manual[chave] = Object.assign({}, man, { regraConferida: r.regraConferida || p.regra.resultado });
+      } else {
+        const c = conferidasLocais(); c[chave] = p.regra.resultado;
+        try { localStorage.setItem('pf-conferidas', JSON.stringify(c)); } catch (e) {}
+      }
+      render();
+    } catch (e) {
+      bt.closest('.conflito').querySelector('.st').textContent = 'Não salvou: ' + (e && e.message ? e.message : e);
+      bt.closest('.conflito').querySelectorAll('button').forEach((b) => { b.disabled = false; });
     }
   }
 
@@ -263,6 +308,8 @@
     const nAbertas = ps.filter((p) => !p.janelaFechada).length;
     const nAberto = ps.filter((p) => /em aberto/i.test(resultado(p))).length;
     const nMan = ps.filter((p) => manualDe(p) && manualDe(p).classificacao).length;
+    const nConf = ps.filter(conflito).length;
+    if (!nConf) S.soConflitos = false;
     const nNovos = ps.reduce((a, p) => a + p.eventos.filter((e) => ehNovo(p, e)).length, 0);
     const pacNovos = ps.filter((p) => p.eventos.some((e) => ehNovo(p, e))).length;
 
@@ -271,11 +318,12 @@
     const lista = [...grupos.entries()].sort((a, b) => b[1] - a[1]);
     const max = Math.max(1, ...lista.map((x) => x[1]));
     const q = norm(S.busca);
-    const visiveis = ps.filter((p) => (!S.filtro || resultado(p) === S.filtro) && (!q || norm(p.id + ' ' + p.rota + ' ' + p.rep + ' ' + resultado(p)).includes(q)))
-      .sort((a, b) => (Number(b.eventos.some((e) => ehNovo(b, e))) - Number(a.eventos.some((e) => ehNovo(a, e)))) || resultado(a).localeCompare(resultado(b)) || a.rota.localeCompare(b.rota) || a.id.localeCompare(b.id));
+    const visiveis = ps.filter((p) => (!S.soConflitos || conflito(p)) && (!S.filtro || resultado(p) === S.filtro) && (!q || norm(p.id + ' ' + p.rota + ' ' + p.rep + ' ' + resultado(p)).includes(q)))
+      .sort((a, b) => (Number(conflito(b)) - Number(conflito(a))) || (Number(b.eventos.some((e) => ehNovo(b, e))) - Number(a.eventos.some((e) => ehNovo(a, e)))) || resultado(a).localeCompare(resultado(b)) || a.rota.localeCompare(b.rota) || a.id.localeCompare(b.id));
 
     $('#lista-res').innerHTML = [...new Set([...SUGESTOES, ...Object.values(S.manual).map((v) => v.classificacao).filter(Boolean)])].map((s) => '<option value="' + esc(s) + '">').join('');
     m.innerHTML = (S.avisos.length ? '<p class="msg err">Atenção: ' + esc(S.avisos.join(' · ')) + '</p>' : '') +
+      (nConf ? '<div class="msg err aviso-conflito"><b>' + fmt(nConf) + (nConf > 1 ? ' pacotes têm' : ' pacote tem') + ' conflito entre a sua classificação e uma regra.</b> Para cada um, escolha qual manter. <button type="button" id="btnConflitos">' + (S.soConflitos ? 'Mostrar todos' : 'Mostrar só os conflitos') + '</button></div>' : '') +
       '<p class="lead">Em <b>' + esc(S.dia) + '</b> a aduana teve <b>' + fmt(ps.length) + '</b> pacotes faltantes. A linha do tempo de cada um começa no <b>sorting</b> (primeiro bipe do pacote no dia na aba Histórico) e vai até ' + CONFIG.JANELA_HORAS + ' h depois; passado esse prazo, não entra mais nada.' +
       (nSem ? ' <b>' + fmt(nSem) + '</b> não tiveram bipe no Histórico no dia (a linha do tempo começa à 00:00).' : '') +
       (nAbertas ? ' <b>' + fmt(nAbertas) + '</b> ainda estão dentro das ' + CONFIG.JANELA_HORAS + ' h e podem receber bipes novos.' : ' A janela de ' + CONFIG.JANELA_HORAS + ' h de todos já encerrou.') + '</p>' +
@@ -285,6 +333,7 @@
         tile('Sem sorting no dia', nSem, 'vale conferir', nSem ? 'bad' : '') +
         tile('Regra em aberto', nAberto, 'sem classificação') +
         tile('Classificados por você', nMan, 'classificação manual', 'man') +
+        tile('Para decidir', nConf, nConf ? 'sua classificação × regra' : 'nenhum conflito', nConf ? 'bad' : '') +
         tile('Bipes novos', nNovos, S.vistosAntes ? 'desde a sua última visita · ' + fmt(pacNovos) + ' pacotes' : 'primeira visita neste navegador', nNovos ? 'new' : '') +
       '</section>' +
       '<section class="card"><h2>Resultado de cada faltante</h2><p class="note">Clique numa barra para filtrar a tabela. Sua classificação manual sempre vence a regra.</p><div class="bars">' +
@@ -292,14 +341,17 @@
       '</div></section>' +
       cartaoRegras() +
       '<section class="card" id="tabela"><div class="tools"><h2>Pacote a pacote</h2><input id="busca" type="search" placeholder="Buscar shipment, rota, rep…" value="' + esc(S.busca) + '" aria-label="Buscar"></div>' +
-        '<p class="note">Mostrando <b>' + esc(S.filtro || 'todos os resultados') + '</b> · ' + fmt(visiveis.length) + ' pacotes' + (S.filtro ? ' · <button type="button" class="chip" id="limpar">Mostrar todos</button>' : '') +
+        '<p class="note">Mostrando <b>' + esc(S.soConflitos ? 'só os conflitos' : (S.filtro || 'todos os resultados')) + '</b> · ' + fmt(visiveis.length) + ' pacotes' + (S.filtro ? ' · <button type="button" class="chip" id="limpar">Mostrar todos</button>' : '') +
         ' · Bipes em <span style="background:var(--new-bg);color:var(--new-fg);padding:0 4px;border-radius:3px">amarelo</span> são novos desde a sua última visita. Nas duas últimas colunas você classifica: salva sozinho ao sair do campo.</p>' +
         '<div class="scroll"><table><thead><tr><th>Shipment</th><th>Rota · aduana</th><th>Resultado</th><th>Linha do tempo (sorting + ' + CONFIG.JANELA_HORAS + ' h)</th><th class="ed">Sua classificação</th></tr></thead><tbody>' +
         (visiveis.length ? visiveis.map(linhaPacote).join('') : '<tr><td colspan="5" class="empty">Nenhum pacote.</td></tr>') +
         '</tbody></table></div></section>';
 
     m.querySelectorAll('.row').forEach((b) => b.onclick = () => { S.filtro = S.filtro === b.dataset.r ? null : b.dataset.r; render(); if (S.filtro) $('#tabela').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
-    const l = $('#limpar'); if (l) l.onclick = () => { S.filtro = null; render(); };
+    const l = $('#limpar'); if (l) l.onclick = () => { S.filtro = null; S.soConflitos = false; render(); };
+    const bc = $('#btnConflitos'); if (bc) bc.onclick = () => { S.soConflitos = !S.soConflitos; S.filtro = null; render(); $('#tabela').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    m.querySelectorAll('[data-acao]').forEach((b) => { b.onclick = () => decidir(porIdC.get(b.dataset.id), b.dataset.acao, b); });
+    const porIdC = new Map(ps.map((p) => [p.id, p]));
     const bx = $('#busca'); let tm;
     bx.oninput = () => { clearTimeout(tm); tm = setTimeout(() => { S.busca = bx.value; render(); }, 250); };
     const porId = new Map(ps.map((p) => [p.id, p]));
@@ -331,8 +383,11 @@
     const man = manualDe(p) || {};
     const temMan = !!man.classificacao;
     const novos = p.eventos.filter((e) => ehNovo(p, e)).length;
-    const res = '<td class="res">' + esc(resultado(p)) + (temMan ? '<span class="pill man">manual</span>' : '') +
-      (temMan && p.regra.resultado !== man.classificacao ? '<span class="sub">Regra: ' + esc(p.regra.resultado) + '</span>' : '') +
+    const conf = conflito(p);
+    const caixa = conf ? '<div class="conflito"><b>Conflito:</b> você classificou <b>' + esc(man.classificacao) + '</b>. A regra' + (p.regra.codigo ? ' <b>' + esc(p.regra.codigo) + '</b>' : '') + ' agora diz <b>' + esc(p.regra.resultado) + '</b>. Qual manter?' +
+      '<span class="botoes"><button type="button" data-acao="manter" data-id="' + p.id + '">Manter a minha</button><button type="button" class="usar" data-acao="regra" data-id="' + p.id + '">Usar a regra</button></span><span class="st"></span></div>' : '';
+    const res = '<td class="res">' + esc(resultado(p)) + (temMan ? '<span class="pill man">manual</span>' : '') + (conf ? '<span class="pill sem">conflito</span>' : '') + caixa +
+      (temMan && !conf && norm(p.regra.resultado) !== norm(man.classificacao) && !/em aberto/i.test(p.regra.resultado) ? '<span class="sub">Regra: ' + esc(p.regra.resultado) + ' (você decidiu manter a sua' + (S.servidor >= 2 ? '' : ' — salvo só neste navegador') + ')</span>' : '') +
       (!temMan && p.regra.regra ? '<span class="sub">' + esc(p.regra.regra) + '</span>' : '') +
       (!temMan && p.regra.detalhe ? '<span class="sub">' + esc(p.regra.detalhe) + '</span>' : '') +
       (temMan && man.quem ? '<span class="sub">por ' + esc(man.quem) + '</span>' : '') + '</td>';

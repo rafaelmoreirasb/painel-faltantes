@@ -24,6 +24,10 @@ As regras olham essa linha do tempo. A mesma regra vale para separáveis e volum
 O que nenhuma regra cobrir fica **Regra em aberto** e o Rafael classifica no painel (aba `Classificação manual`),
 que sempre vence a regra.
 
+### Classificação manual × regra
+A manual vence. Se depois uma regra passar a dar outro resultado, o painel mostra o conflito e pergunta qual manter
+("Manter a minha" grava a coluna F "Regra conferida"; "Usar a regra" apaga a manual). Se a regra mudar de novo, pergunta de novo.
+
 ### Como mandar uma regra nova (modelo)
 - **Pergunta** (se SIM, o pacote para aqui): ex. "Depois do sorting, o próximo bipe foi avaria com dano Produto e Não reparado?"
 - **Resultado**: ex. "PRODUTO AVARIADO"
