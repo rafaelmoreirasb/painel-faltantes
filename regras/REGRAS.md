@@ -1,22 +1,58 @@
 # Regras de classificação — faltantes na aduana (SSP53)
 
-Fonte da verdade das regras. O painel implementa exatamente o que está aqui, no arquivo
-`apps-script/painel/Regras.html` (função `classificar(pacote)`).
+Fonte da verdade das regras (em português). Cada regra vive em 3 lugares, cada um com um papel:
+
+| Onde | O que fica lá | Quem muda |
+|---|---|---|
+| **Aba `Regras`** da planilha principal | Ordem, Código, Ligada (Sim/Não), Pergunta, Resultado, Observação, Abas usadas | **o Rafael, sozinho** |
+| `apps-script/painel/Regras.html` (objeto `LOGICA`) | o que cada regra verifica na linha do tempo, pelo Código | o Claude |
+| este arquivo | a explicação de cada regra, para consulta | o Claude, a cada regra nova/alterada |
+
+**Sem mexer em código o Rafael pode:** mudar a ordem (a primeira regra que bater classifica o pacote), desligar uma
+regra (Ligada = Não), mudar o texto do Resultado e a Observação. O painel mostra a lista em **"Regras em uso"**, com
+quantos pacotes do dia caíram em cada uma. Mudança na aba vale no próximo **Atualizar agora**.
+**Mudar o que a regra verifica** (a pergunta em si) ou criar regra nova: pedir ao Claude. Regra que está na aba mas
+ainda não tem lógica no código aparece como "sem lógica ainda — pedir ao Claude" e é pulada.
 
 **Como o painel monta cada pacote:** faltante = linha da aba **Aduana** com Estado "Faltante" no dia analisado.
-A linha do tempo começa no **primeiro bipe de conteinerização do dia** (aba Histórico, Processo = containerize) e vai até
-**36 h depois**, juntando Histórico, Auditoria de Carrinho, Aduana, Problem Solving, Inventário, Torre Aduana e
-Direcionamento Manual. As regras olham essa linha do tempo. A mesma regra vale para separáveis e volumosos.
+Tudo começa no **sorting**: a linha do tempo começa no **primeiro bipe do pacote no dia na aba Histórico** (qualquer
+processo — sorting ou conteinerização) e vai até **36 h depois**, juntando Histórico, Auditoria de Carrinho, Aduana,
+Problem Solving, Inventário, Torre Aduana e Direcionamento Manual. Passadas as 36 h, não entra mais nada daquele pacote.
+Sem bipe no Histórico no dia: a linha do tempo começa à 00:00 e o pacote ganha a etiqueta "sem sorting no dia".
+As regras olham essa linha do tempo. A mesma regra vale para separáveis e volumosos.
 
 O que nenhuma regra cobrir fica **Regra em aberto** e o Rafael classifica no painel (aba `Classificação manual`),
 que sempre vence a regra.
 
+### Como mandar uma regra nova (modelo)
+- **Pergunta** (se SIM, o pacote para aqui): ex. "Depois do sorting, o próximo bipe foi avaria com dano Produto e Não reparado?"
+- **Resultado**: ex. "PRODUTO AVARIADO"
+- **Onde olhar**: abas e colunas (ex. Problem Solving › Problema = "Pacote avariado", Resolução = "Não reparado")
+- **Exemplo**: um Shipment ID e o dia em que isso aconteceu (para testar)
+- **Ordem**: antes/depois de qual regra
+
 ## Regras vigentes
 
-*(vazio — o Rafael vai mandar as regras novas. Cada regra: código, pergunta, resultado, e de quais abas/colunas ela depende.)*
+Regras iniciais mandadas pelo Rafael em 08/11/2026. Todas exigem que o pacote tenha sido **bipado no Histórico no dia**
+e olham só a janela de 36 h. "Faltante na aduana" é verdade para todo pacote do painel. Ordem = a que o Rafael mandou
+(muda na aba `Regras`).
 
 | Ordem | Código | Pergunta (se SIM, o pacote para aqui) | Resultado | Abas usadas |
 |---|---|---|---|---|
+| 1 | R01 | Bipado no Histórico e encontrado na Torre **A mais em outra rota**? | Erro de Conteinerização | Histórico, Torre Aduana, Aduana |
+| 2 | R02 | Bipado no Histórico e bipado no **Direcionamento Manual**? Vale com qualquer resultado na auditoria de carrinho (faltante, pendente ou correto) e mesmo se deu faltante na torre e na aduana. | o conteúdo da **coluna 3 (STATUS)** do Direcionamento Manual (ex.: SEM ROTAS) | Histórico, Direcionamento Manual |
+| 3 | R03 | Bipado no Histórico, faltante na Aduana e na Torre, e **logo depois Verificado no Inventário**? | Erro de Conteinerização | Histórico, Aduana, Torre Aduana, Inventário |
+| 4 | R04 | Bipado no Histórico, faltante na Aduana e na Torre (bipado ou não na auditoria de carrinho) e depois **Problem Solving: Problema = pacote avariado e Resolução = não reparado**? | Pacote Avariado | Histórico, Aduana, Torre Aduana, Problem Solving |
+
+**Como o painel verifica (detalhe técnico):**
+- *Torre*: coluna `Estado aduana` ("A mais" / "Faltante"); rota = `Gaiola (rota otim,)`, comparada com `ID da rota` da Aduana
+  (mesmo formato, ex. A1_AM1). Horário do evento = `Concluido em`.
+- *R01*: algum registro da Torre "A mais" com rota diferente da rota em que faltou.
+- *R02*: primeiro registro do pacote no Direcionamento Manual dentro da janela; o resultado é o `STATUS`.
+  Linhas do Direcionamento **sem Carimbo de data/hora** não entram na linha do tempo, então a R02 não as vê.
+- *R03*: tem "Faltante" na Torre e o **primeiro** registro do Inventário depois disso tem `Situação` = Verificados.
+- *R04*: tem "Faltante" na Torre e algum registro do Problem Solving com `Problema` contendo "avaria" e `Resolução`
+  contendo "não reparado" (sem diferenciar maiúscula/acento).
 
 ---
 

@@ -9,12 +9,15 @@ Código: [`apps-script/painel/`](../apps-script/painel/) — 3 arquivos: `Painel
 
 ## O que o painel mostra
 - **Dia analisado**: os dias que têm faltantes na aba **Aduana** (Estado = Faltante).
-- Para cada faltante, a **linha do tempo**: começa no **primeiro bipe de conteinerização do dia** (aba Histórico) e vai até
-  **36 h depois**, juntando Histórico, Auditoria de Carrinho, Aduana, Problem Solving, Inventário, Torre Aduana e
-  Direcionamento Manual. Se o pacote não teve conteinerização no dia, a linha do tempo começa à 00:00 e ele ganha a etiqueta
-  "sem conteinerização".
-- **Resultado**: a regra automática (por enquanto todos "Regra em aberto", até as regras novas entrarem em `Regras.html`)
+- Para cada faltante, a **linha do tempo**: começa no **sorting** — primeiro bipe do pacote no dia na aba Histórico
+  (qualquer processo) — e vai até **36 h depois**, juntando Histórico, Auditoria de Carrinho, Aduana, Problem Solving,
+  Inventário, Torre Aduana e Direcionamento Manual. Depois das 36 h não entra mais nada daquele pacote (enquanto a janela
+  está aberta aparece "janela aberta até …"). Sem bipe no Histórico no dia, a linha do tempo começa à 00:00 e ele ganha
+  a etiqueta "sem sorting no dia".
+- **Resultado**: a regra automática (aba **Regras** + `Regras.html`; o que nenhuma cobrir fica "Regra em aberto")
   ou a **sua classificação**, que sempre vence.
+- **Regras em uso**: a lista da aba Regras, com quantos pacotes do dia caíram em cada regra. Na aba você muda ordem,
+  liga/desliga e o texto do resultado sozinho (ver `regras/REGRAS.md`).
 - **Sua classificação**: nas duas últimas colunas você escolhe/escreve a classificação e o raciocínio. Salva sozinho ao sair
   do campo, na aba **Classificação manual** (com o e-mail de quem classificou). Também dá para escrever direto na aba.
 - **Bipes novos** (amarelo): o que apareceu desde a última vez que você abriu o painel neste navegador.
@@ -34,9 +37,11 @@ Código: [`apps-script/painel/`](../apps-script/painel/) — 3 arquivos: `Painel
    - **HTML** chamado `Regras` → conteúdo de `apps-script/painel/Regras.html`
    (Os nomes têm que ser exatamente esses; o Google acrescenta `.gs`/`.html` sozinho. O Apps Script não aceita dois
    arquivos com o mesmo nome, mesmo de tipos diferentes — por isso a tela não se chama `Painel`.)
-3. Salve. Escolha a função **painelCriarGatilho** e clique em **Run**. Aceite as permissões (inclui "conectar a um
-   serviço externo", que é o GitHub). Em **Execution log** deve aparecer "Preparados: …" e "Gatilho criado".
-   (Para conferir só a leitura, há também **painelTestar**.)
+3. Salve. Rode, uma vez cada (lista de funções ao lado de **Debug** › **Run**), aceitando as permissões
+   (inclui "conectar a um serviço externo", que é o GitHub):
+   - **painelCriarAbaRegras** — cria a aba **Regras** na planilha (se ela já existir, não mexe);
+   - **painelCriarGatilho** — liga a preparação automática dos dados. Em **Execution log** deve aparecer "Preparados: …"
+     e "Gatilho criado". (Para conferir só a leitura, há também **painelTestar**.)
 4. **Deploy** (Implantar) › **New deployment** (Nova implantação) › engrenagem › **Web app**.
    - Description: `Painel de faltantes`
    - **Execute as: Me** (Eu)

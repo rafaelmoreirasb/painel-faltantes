@@ -18,6 +18,10 @@
 | 07/11/2026 | Separáveis e volumosos numa lista só; Tratativas fora por enquanto | Ainda não há aba de tipo na planilha nova; Tratativas só existe na planilha antiga |
 | 07/11/2026 | Regras antigas aposentadas; painel sai com "Regra em aberto" e classificação manual no próprio painel | O Rafael vai mandar regras novas, iguais para os dois tipos |
 | 08/11/2026 | Planilha fica na conta DHL (não copiar para a conta pessoal) | Uma cópia pessoal deixaria de receber dados novos e pode ir contra a política de dados da DHL; o Web App já resolve o acesso |
+| 08/11/2026 | Linha do tempo começa no sorting: 1º bipe do pacote no dia na aba Histórico (qualquer processo) + 36 h; depois disso não entra mais nada | Decisão do Rafael: todo bipe começa no sorting (antes começava na conteinerização) |
+| 08/11/2026 | Regras na aba `Regras` da planilha (ordem, liga/desliga, texto do resultado) + lógica por Código em `Regras.html` | O Rafael vê e muda as regras sem mexer em código; o painel mostra "Regras em uso" com a contagem do dia |
+| 08/11/2026 | 4 regras iniciais (R01–R04) cadastradas; `painelCriarAbaRegras` já grava as 4 na aba Regras | Regras mandadas pelo Rafael ("de início deixar essas") |
 | 08/11/2026 | Painel publicado (Web App, DHL) e validado: classificação gravada na aba Classificação manual com o e-mail de quem classificou | Teste do Rafael com o pacote 48392044463 (06/11) |
 | 08/11/2026 | Painel continua "Anyone within DHL Group" | A opção "Anyone" está bloqueada pelo administrador da DHL. Abrir de fora: entrar com a conta DHL no navegador. Liberar só via TI |
 | 08/11/2026 | Painel com dados pré-calculados (gatilho 5 min) e tela/regras servidas do GitHub | Rafael achou lento e trabalhoso; pediu conta pessoal + público, recusado por contornar bloqueio da DHL. Risco aceito: quem altera o repositório altera o painel |
+| 08/11/2026 | Ramo `claude/regras-sorting` (R01–R04, aba Regras, início no sorting) juntado ao main com o painel rápido/GitHub; toda conversa passa a enviar direto para o main | As regras tinham "sumido" do painel porque só existiam num ramo e o painel lê o main |
