@@ -3,7 +3,7 @@
 O painel é um site do **Google Apps Script** que roda com a sua conta. A planilha
 **Conteneirização de Pacotes - Base SSP53** continua privada: só quem estiver logado com conta da DHL abre o painel.
 
-Código: [`apps-script/painel/`](../apps-script/painel/) — 3 arquivos: `Painel.gs`, `Painel.html`, `Regras.html`.
+Código: [`apps-script/painel/`](../apps-script/painel/) — 3 arquivos: `Painel.gs`, `PainelTela.html`, `Regras.html`.
 
 ## O que o painel mostra
 - **Dia analisado**: os dias que têm faltantes na aba **Aduana** (Estado = Faltante).
@@ -23,9 +23,10 @@ Código: [`apps-script/painel/`](../apps-script/painel/) — 3 arquivos: `Painel
    (o mesmo projeto onde está o `importar-relatorios`).
 2. Crie os 3 arquivos (botão **+** ao lado de **Files**) e cole o conteúdo do GitHub:
    - **Script** chamado `Painel` → conteúdo de `apps-script/painel/Painel.gs`
-   - **HTML** chamado `Painel` → conteúdo de `apps-script/painel/Painel.html`
+   - **HTML** chamado `PainelTela` → conteúdo de `apps-script/painel/PainelTela.html`
    - **HTML** chamado `Regras` → conteúdo de `apps-script/painel/Regras.html`
-   (O nome tem que ser exatamente `Painel` e `Regras`; o Google acrescenta `.gs`/`.html` sozinho.)
+   (Os nomes têm que ser exatamente esses; o Google acrescenta `.gs`/`.html` sozinho. O Apps Script não aceita dois
+   arquivos com o mesmo nome, mesmo de tipos diferentes — por isso a tela não se chama `Painel`.)
 3. Salve. Escolha a função **painelTestar** e clique em **Run**. Aceite as permissões.
    Em **Execution log** deve aparecer algo como "05/11/2026: 46 faltantes, 0 sem conteinerização no dia, 4.2 s".
 4. **Deploy** (Implantar) › **New deployment** (Nova implantação) › engrenagem › **Web app**.

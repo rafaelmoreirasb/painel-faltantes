@@ -4,7 +4,7 @@
  * Fica no MESMO projeto de Apps Script da planilha "Conteneirização de Pacotes - Base SSP53"
  * (Extensões > Apps Script), junto com o importar-relatorios. Arquivos do painel:
  *   Painel.gs    (este)  – lê a planilha e monta os pacotes
- *   Painel.html          – a tela
+ *   PainelTela.html      – a tela (HTML; não pode ter o mesmo nome do Painel.gs)
  *   Regras.html          – as regras de classificação (rodam na tela)
  * Publicação e atualização: ver docs/painel.md
  *
@@ -239,7 +239,7 @@ const PainelFaltantes = (() => {
 
 /* ===== Funções que o Google chama (precisam ficar soltas, com nomes únicos no projeto) ===== */
 function doGet() {
-  return HtmlService.createTemplateFromFile('Painel').evaluate()
+  return HtmlService.createTemplateFromFile('PainelTela').evaluate()
     .setTitle('Faltantes na Aduana · SSP53')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }

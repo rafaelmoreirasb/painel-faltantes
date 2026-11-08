@@ -11,7 +11,7 @@ O painel precisa se atualizar sozinho: um bipe que entra à noite tem que aparec
 ```
 CLAUDE.md          este arquivo (contexto que toda conversa nova lê)
 apps-script/       scripts do Google Apps Script (cópia fiel do que está instalado)
-apps-script/painel/  O PAINEL: Web App do Apps Script (Painel.gs, Painel.html, Regras.html) — ver docs/painel.md
+apps-script/painel/  O PAINEL: Web App do Apps Script (Painel.gs, PainelTela.html, Regras.html) — ver docs/painel.md
 painel/            só um aviso no GitHub Pages apontando para o Web App
 regras/REGRAS.md   regras de classificação — fonte da verdade
 docs/decisoes.md   registro das decisões
