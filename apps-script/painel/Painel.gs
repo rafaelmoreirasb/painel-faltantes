@@ -40,7 +40,7 @@ const PainelFaltantes = (() => {
       colunas: ['Shipment ID', 'Situação', 'Ârea', 'Operador', 'Comentario', 'Verificado', 'Pendente', 'Deslocado', 'Data Reporte', 'Horario'],
       texto: (g) => juntar(g('Situação'), g('Ârea'), g('Operador'), g('Comentario')) },
     torre: { aba: 'Torre Aduana', id: 'Shipment ID', data: 'Concluido em', hora: null,
-      colunas: ['Shipment ID', 'Estado aduana', 'Gaiola (rota otim,)', 'Doca', 'Estado carrinho', 'Hora aduana', 'Auditor aduana',
+      colunas: ['Shipment ID', 'Estado aduana', 'Rota', 'Gaiola (rota otim,)', 'Doca', 'Estado carrinho', 'Hora aduana', 'Auditor aduana',
         'Classificacao', 'Situacao', 'Status tratativa', 'Tratativa - responsavel/obs', 'Concluido em'],
       texto: (g) => juntar(g('Estado aduana'), g('Gaiola (rota otim,)'), g('Classificacao'), g('Status tratativa'), g('Tratativa - responsavel/obs')) },
     direcionamento: { aba: 'Direcionamento Manual', id: 'ID DO PRODUTO', data: null, hora: null, quando: 'Carimbo de data/hora',
@@ -223,16 +223,25 @@ const PainelFaltantes = (() => {
     })).filter((r) => r.codigo).sort((a, b) => a.ordem - b.ordem || a.linha - b.linha);
   }
 
-  /** Cria a aba Regras com o cabeçalho (não mexe se já existir). */
+  /* Regras iniciais do Rafael (08/11/2026). Mesma lista de PADRAO em Regras.html. Colunas = CAB_REGRAS. */
+  const REGRAS_INICIAIS = [
+    ['1', 'R01', 'Sim', 'Bipado no Histórico e encontrado na Torre A MAIS em outra rota?', 'Erro de Conteinerização', '', 'Histórico, Torre Aduana, Aduana'],
+    ['2', 'R02', 'Sim', 'Bipado no Histórico e bipado no Direcionamento Manual (qualquer resultado na auditoria de carrinho, torre ou aduana)?', '(coluna STATUS do Direcionamento Manual)', 'O resultado mostrado é o STATUS do Direcionamento', 'Histórico, Direcionamento Manual'],
+    ['3', 'R03', 'Sim', 'Bipado no Histórico, faltante na Aduana e na Torre, e logo depois Verificado no Inventário?', 'Erro de Conteinerização', '', 'Histórico, Aduana, Torre Aduana, Inventário'],
+    ['4', 'R04', 'Sim', 'Bipado no Histórico, faltante na Aduana e na Torre, e depois Problem Solving: pacote avariado / não reparado?', 'Pacote Avariado', 'Com ou sem auditoria de carrinho', 'Histórico, Aduana, Torre Aduana, Problem Solving'],
+  ];
+
+  /** Cria a aba Regras com o cabeçalho e as regras iniciais. Se a aba já tiver regras, não mexe. */
   function criarAbaRegras() {
     const ss = planilha();
     let aba = ss.getSheetByName(CFG.ABA_REGRAS);
-    if (aba) return 'A aba "' + CFG.ABA_REGRAS + '" já existe — nada foi alterado.';
-    aba = ss.insertSheet(CFG.ABA_REGRAS);
+    if (aba && aba.getLastRow() >= 2) return 'A aba "' + CFG.ABA_REGRAS + '" já tem regras — nada foi alterado.';
+    if (!aba) aba = ss.insertSheet(CFG.ABA_REGRAS);
+    aba.getRange(1, 1, 200, CAB_REGRAS.length).setNumberFormat('@');
     aba.getRange(1, 1, 1, CAB_REGRAS.length).setValues([CAB_REGRAS]).setFontWeight('bold');
-    aba.getRange(2, 1, 200, CAB_REGRAS.length).setNumberFormat('@');
+    aba.getRange(2, 1, REGRAS_INICIAIS.length, CAB_REGRAS.length).setValues(REGRAS_INICIAIS);
     aba.setFrozenRows(1);
-    return 'Aba "' + CFG.ABA_REGRAS + '" criada.';
+    return 'Aba "' + CFG.ABA_REGRAS + '" pronta com ' + REGRAS_INICIAIS.length + ' regras.';
   }
 
   function lerManual() {

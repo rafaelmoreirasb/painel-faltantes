@@ -33,10 +33,26 @@ que sempre vence a regra.
 
 ## Regras vigentes
 
-*(vazio — o Rafael vai mandar as regras novas.)*
+Regras iniciais mandadas pelo Rafael em 08/11/2026. Todas exigem que o pacote tenha sido **bipado no Histórico no dia**
+e olham só a janela de 36 h. "Faltante na aduana" é verdade para todo pacote do painel. Ordem = a que o Rafael mandou
+(muda na aba `Regras`).
 
-| Ordem | Código | Pergunta (se SIM, o pacote para aqui) | Resultado | Abas usadas | Observação |
-|---|---|---|---|---|---|
+| Ordem | Código | Pergunta (se SIM, o pacote para aqui) | Resultado | Abas usadas |
+|---|---|---|---|---|
+| 1 | R01 | Bipado no Histórico e encontrado na Torre **A mais em outra rota**? | Erro de Conteinerização | Histórico, Torre Aduana, Aduana |
+| 2 | R02 | Bipado no Histórico e bipado no **Direcionamento Manual**? Vale com qualquer resultado na auditoria de carrinho (faltante, pendente ou correto) e mesmo se deu faltante na torre e na aduana. | o conteúdo da **coluna 3 (STATUS)** do Direcionamento Manual (ex.: SEM ROTAS) | Histórico, Direcionamento Manual |
+| 3 | R03 | Bipado no Histórico, faltante na Aduana e na Torre, e **logo depois Verificado no Inventário**? | Erro de Conteinerização | Histórico, Aduana, Torre Aduana, Inventário |
+| 4 | R04 | Bipado no Histórico, faltante na Aduana e na Torre (bipado ou não na auditoria de carrinho) e depois **Problem Solving: Problema = pacote avariado e Resolução = não reparado**? | Pacote Avariado | Histórico, Aduana, Torre Aduana, Problem Solving |
+
+**Como o painel verifica (detalhe técnico):**
+- *Torre*: coluna `Estado aduana` ("A mais" / "Faltante"); rota = `Gaiola (rota otim,)`, comparada com `ID da rota` da Aduana
+  (mesmo formato, ex. A1_AM1). Horário do evento = `Concluido em`.
+- *R01*: algum registro da Torre "A mais" com rota diferente da rota em que faltou.
+- *R02*: primeiro registro do pacote no Direcionamento Manual dentro da janela; o resultado é o `STATUS`.
+  Linhas do Direcionamento **sem Carimbo de data/hora** não entram na linha do tempo, então a R02 não as vê.
+- *R03*: tem "Faltante" na Torre e o **primeiro** registro do Inventário depois disso tem `Situação` = Verificados.
+- *R04*: tem "Faltante" na Torre e algum registro do Problem Solving com `Problema` contendo "avaria" e `Resolução`
+  contendo "não reparado" (sem diferenciar maiúscula/acento).
 
 ---
 

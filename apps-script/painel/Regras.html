@@ -39,26 +39,67 @@
     /** Tem algum evento da aba com as colunas iguais ao filtro? Ex.: A.temNaAba(p, 'ps', { 'Problema': 'Pacote avariado' }) */
     temNaAba: (p, fonte, filtro) => p.eventos.some((e) => e.fonte === fonte &&
       Object.keys(filtro || {}).every((k) => norm(e.dados[k]) === norm(filtro[k]))),
+    /** Rota em que o pacote deu faltante na Aduana (ex.: "A1_AM1"). */
+    rotaFaltante: (p) => String((p.aduana && p.aduana['ID da rota']) || '').trim(),
+    /** Eventos da Torre Aduana com o Estado aduana pedido ("faltante", "a mais"). */
+    torre: (p, estado) => p.eventos.filter((e) => e.fonte === 'torre' && norm(e.dados['Estado aduana']) === norm(estado)),
+    /** Rota da Torre: Gaiola (rota otim,) ou, se vazia, a parte antes do "|" da coluna Rota. */
+    rotaTorre: (e) => String(e.dados['Gaiola (rota otim,)'] || String(e.dados['Rota'] || '').split('|')[0]).trim(),
   };
 
   /*
-   * LÓGICA DE CADA REGRA (pelo Código da aba Regras). Devolve true = a regra vale para o pacote.
-   * Pode devolver também um texto: ele aparece como detalhe embaixo do resultado.
-   * Vazio por enquanto: o Rafael vai mandar as regras novas.
-   *
-   * Exemplo (desligado):
-   *   'R01': (p) => A.temNaAba(p, 'ps', { 'Problema': 'Pacote avariado', 'Resolução': 'Não reparado' }),
+   * LÓGICA DE CADA REGRA (pelo Código da aba Regras). Devolve:
+   *   false/null  → a regra não vale, passa para a próxima;
+   *   true        → vale (resultado = coluna Resultado da aba);
+   *   'texto'     → vale, e o texto aparece como detalhe embaixo do resultado;
+   *   { resultado, detalhe } → vale e troca o resultado (ex.: R02 mostra o STATUS do Direcionamento).
+   * Todas exigem bipe no Histórico (sorting) no dia. Explicação de cada uma: regras/REGRAS.md.
    */
   const LOGICA = {
+    // R01 — Torre: A MAIS em outra rota → Erro de Conteinerização
+    'R01': (p) => {
+      if (!p.temSorting) return false;
+      const rf = norm(A.rotaFaltante(p));
+      const e = A.torre(p, 'a mais').find((x) => A.rotaTorre(x) && norm(A.rotaTorre(x)) !== rf);
+      return e ? 'A mais na Torre na rota ' + A.rotaTorre(e) + ' (faltou na ' + (A.rotaFaltante(p) || '?') + ')' : false;
+    },
+    // R02 — bipado no Direcionamento Manual → resultado = coluna 3 (STATUS) do Direcionamento
+    'R02': (p) => {
+      if (!p.temSorting) return false;
+      const e = A.eventosDe(p, 'direcionamento')[0];
+      if (!e) return false;
+      const st = String(e.dados['STATUS'] || '').trim();
+      return { resultado: st || 'Direcionamento manual (STATUS em branco)', detalhe: 'Direcionamento manual · ' + (e.texto || '') };
+    },
+    // R03 — faltante na Torre e, logo depois, Verificado no Inventário → Erro de Conteinerização
+    'R03': (p) => {
+      if (!p.temSorting) return false;
+      const f = A.torre(p, 'faltante')[0];
+      if (!f) return false;
+      const inv = p.eventos.find((e) => e.fonte === 'inventario' && e.quando >= f.quando);
+      return inv && norm(inv.dados['Situação']).startsWith('verificad') ? 'Verificado no inventário em ' + (inv.dados['Ârea'] || 'área não informada') : false;
+    },
+    // R04 — faltante na Torre e Problem Solving: pacote avariado / não reparado → Pacote Avariado
+    'R04': (p) => {
+      if (!p.temSorting || !A.torre(p, 'faltante').length) return false;
+      const e = p.eventos.find((x) => x.fonte === 'ps' && norm(x.dados['Problema']).includes('avaria') &&
+        norm(x.dados['Resolução']).includes('nao reparado'));
+      return e ? 'Problem Solving: ' + e.dados['Problema'] + ' · ' + e.dados['Resolução'] : false;
+    },
   };
 
-  /* Regras padrão, usadas só se a aba "Regras" não existir (mesmos campos da aba). */
+  /* Regras iniciais, usadas enquanto a aba "Regras" não existe ou está vazia (mesmos campos da aba).
+     Mesma lista de REGRAS_INICIAIS em Painel.gs (que grava na aba). */
   const PADRAO = [
+    { ordem: 1, codigo: 'R01', ligada: true, resultado: 'Erro de Conteinerização', pergunta: 'Bipado no Histórico e encontrado na Torre A MAIS em outra rota?', observacao: '', abas: 'Histórico, Torre Aduana, Aduana' },
+    { ordem: 2, codigo: 'R02', ligada: true, resultado: '(coluna STATUS do Direcionamento Manual)', pergunta: 'Bipado no Histórico e bipado no Direcionamento Manual (qualquer resultado na auditoria de carrinho, torre ou aduana)?', observacao: 'O resultado mostrado é o STATUS do Direcionamento', abas: 'Histórico, Direcionamento Manual' },
+    { ordem: 3, codigo: 'R03', ligada: true, resultado: 'Erro de Conteinerização', pergunta: 'Bipado no Histórico, faltante na Aduana e na Torre, e logo depois Verificado no Inventário?', observacao: '', abas: 'Histórico, Aduana, Torre Aduana, Inventário' },
+    { ordem: 4, codigo: 'R04', ligada: true, resultado: 'Pacote Avariado', pergunta: 'Bipado no Histórico, faltante na Aduana e na Torre, e depois Problem Solving: pacote avariado / não reparado?', observacao: 'Com ou sem auditoria de carrinho', abas: 'Histórico, Aduana, Torre Aduana, Problem Solving' },
   ];
 
   /** Junta a aba Regras com a LOGICA: cada linha ganha temLogica. */
   function montar(regrasDaAba) {
-    const lista = Array.isArray(regrasDaAba) ? regrasDaAba : PADRAO;
+    const lista = Array.isArray(regrasDaAba) && regrasDaAba.length ? regrasDaAba : PADRAO;
     return lista.map((r) => Object.assign({}, r, { codigo: String(r.codigo || '').toUpperCase(), temLogica: typeof LOGICA[String(r.codigo || '').toUpperCase()] === 'function' }));
   }
 
@@ -72,7 +113,10 @@
         if (!r.ligada || !r.temLogica) continue;
         try {
           const v = LOGICA[r.codigo](p, A);
-          if (v) return { resultado: r.resultado || r.codigo, codigo: r.codigo, regra: r.codigo + (r.pergunta ? ' · ' + r.pergunta : ''), detalhe: typeof v === 'string' ? v : (r.observacao || '') };
+          if (!v) continue;
+          const obj = typeof v === 'object' ? v : {};
+          return { resultado: obj.resultado || r.resultado || r.codigo, codigo: r.codigo, regra: r.codigo + (r.pergunta ? ' · ' + r.pergunta : ''),
+            detalhe: typeof v === 'string' ? v : (obj.detalhe || r.observacao || '') };
         } catch (e) {
           console.error('Regra ' + r.codigo + ' falhou no pacote ' + p.id, e);
         }
