@@ -25,3 +25,4 @@
 | 08/11/2026 | Painel continua "Anyone within DHL Group" | A opção "Anyone" está bloqueada pelo administrador da DHL. Abrir de fora: entrar com a conta DHL no navegador. Liberar só via TI |
 | 08/11/2026 | Painel com dados pré-calculados (gatilho 5 min) e tela/regras servidas do GitHub | Rafael achou lento e trabalhoso; pediu conta pessoal + público, recusado por contornar bloqueio da DHL. Risco aceito: quem altera o repositório altera o painel |
 | 08/11/2026 | Ramo `claude/regras-sorting` (R01–R04, aba Regras, início no sorting) juntado ao main com o painel rápido/GitHub; toda conversa passa a enviar direto para o main | As regras tinham "sumido" do painel porque só existiam num ramo e o painel lê o main |
+| 08/11/2026 | Visual do painel igual ao sistema "Gestão de Processo e Qualidade" (cabeçalho amarelo DHL, faixa vermelha, logo, Barlow/JetBrains Mono); sem modo escuro | Pedido do Rafael; só PainelTela.html mudou (vem do GitHub, sem colar) |
