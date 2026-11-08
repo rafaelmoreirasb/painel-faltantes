@@ -39,10 +39,16 @@ Código: [`apps-script/painel/`](../apps-script/painel/) — 3 arquivos: `Painel
    - **Deploy** › copie o link **Web app URL** (termina em `/exec`). Esse é o endereço do painel.
 5. Mande o link para quem vai usar na reunião (precisam estar logados com conta DHL).
 
-## Quando o código mudar
-Colar o código novo **não** muda o painel publicado sozinho. Depois de colar e salvar:
-**Deploy › Manage deployments** (Gerenciar implantações) › lápis (Editar) › **Version: New version** › **Deploy**.
-O link continua o mesmo.
+## Como pedir e aplicar uma alteração (layout, regras, colunas…)
+1. **Peça ao Claude** na conversa do tópico ("Faltantes · Painel", "Faltantes · Regras"…), em português normal.
+2. **O Claude altera, testa com dados reais e envia para o GitHub**, e diz no fim **quais arquivos mudaram**
+   (quase sempre só um: `PainelTela.html` = visual · `Regras.html` = regras · `Painel.gs` = leitura dos dados).
+3. **Você cola** o arquivo que mudou no Apps Script (abra o arquivo › selecione tudo › cole o novo) e salve.
+4. **Você publica a versão nova** — colar o código **não** muda o painel publicado sozinho:
+   **Deploy › Manage deployments** (Gerenciar implantações) › lápis (Editar) › **Version: New version** › **Deploy**.
+   O link continua o mesmo. Recarregue o painel para ver a mudança.
+
+Dá para automatizar os passos 3–4, mas exigiria guardar uma credencial da conta DHL no GitHub; não fazer sem a TI.
 
 ## Problemas comuns
 | O que aparece | O que fazer |
