@@ -14,7 +14,12 @@ const PainelFaltantes = (() => {
   const CFG = {
     JANELA_HORAS: 36,  // linha do tempo: conteinerização no dia + 36 h
     DIAS_LEITURA: 3,   // lê o dia analisado e os 2 seguintes
-    CACHE_SEG: 300,    // guarda o resultado por 5 min (várias pessoas abrindo ao mesmo tempo)
+    CACHE_SEG: 21600,  // resultado guardado por 6 h; o gatilho de 5 min (painelPreparar) renova os dias recentes
+    DIAS_PREPARAR: 4,  // o gatilho deixa prontos os dias com faltantes dos últimos 4 dias
+    PREPARAR_MIN: 5,   // de quantos em quantos minutos o gatilho prepara os dados
+    // A tela e as regras vêm do GitHub (mudou lá, o painel muda sozinho). Se o GitHub falhar, usa as cópias do projeto.
+    GITHUB_RAW: 'https://raw.githubusercontent.com/rafaelmoreirasb/painel-faltantes/main/apps-script/painel/',
+    GITHUB_CACHE_SEG: 300,
     ABA_MANUAL: 'Classificação manual',
     PLANILHA_ID: '1nDqe83XDoY-A3u6rNxaMP2RT74mZNjrYSDUY2c9dKhk', // Conteneirização de Pacotes - Base SSP53
   };
@@ -135,9 +140,8 @@ const PainelFaltantes = (() => {
   }
 
   /* ---------- funções chamadas pela tela ---------- */
-  function listarDias() {
-    const cache = cacheLer('dias');
-    if (cache) return cache;
+  function listarDias(forcar) {
+    if (!forcar) { const cache = cacheLer('dias'); if (cache) return cache; }
     const { linhas } = lerAba('aduana', null);
     const cont = {};
     for (const o of linhas) if (norm(o['Estado']) === 'faltante') { const d = diaDe(o['Data auditoria']); if (d) cont[d] = (cont[d] || 0) + 1; }
@@ -242,16 +246,60 @@ const PainelFaltantes = (() => {
     }
   }
 
-  return { CFG, FONTES, listarDias, dadosDoDia, lerManual, salvarClassificacao, lerDataHora, diaDe, planilha };
+  /** Gatilho de 5 min: deixa prontos (no cache) a lista de dias e os dias recentes. Assim o painel abre na hora. */
+  function preparar() {
+    const inicio = Date.now();
+    const dias = listarDias(true);
+    const limite = Date.now() - CFG.DIAS_PREPARAR * 86400000;
+    const feitos = [];
+    for (const d of dias) {
+      if (d.t < limite) continue;
+      if (Date.now() - inicio > 4.5 * 60 * 1000) break; // não passa do limite de 6 min do Google
+      dadosDoDia(d.dia, true);
+      feitos.push(d.dia);
+    }
+    return { dias: feitos, segundos: Math.round((Date.now() - inicio) / 100) / 10 };
+  }
+
+  /** Texto de um arquivo da tela: do GitHub (guardado 5 min) ou, se falhar, a cópia do projeto. */
+  function arquivoTela(nome) {
+    const chave = 'gh:' + nome;
+    try {
+      const c = CacheService.getScriptCache().get(chave);
+      if (c) return c;
+    } catch (e) {}
+    try {
+      const r = UrlFetchApp.fetch(CFG.GITHUB_RAW + nome + '.html', { muteHttpExceptions: true });
+      const texto = r.getResponseCode() === 200 ? r.getContentText('UTF-8') : '';
+      if (texto && texto.length > 50) {
+        try { if (texto.length < 95000) CacheService.getScriptCache().put(chave, texto, CFG.GITHUB_CACHE_SEG); } catch (e) {}
+        return texto;
+      }
+    } catch (e) { console.warn('GitHub indisponível (' + nome + '): ' + e.message); }
+    return HtmlService.createHtmlOutputFromFile(nome).getContent();
+  }
+
+  return { CFG, FONTES, listarDias, dadosDoDia, lerManual, salvarClassificacao, lerDataHora, diaDe, planilha, preparar, arquivoTela };
 })();
 
 /* ===== Funções que o Google chama (precisam ficar soltas, com nomes únicos no projeto) ===== */
 function doGet() {
-  return HtmlService.createTemplateFromFile('PainelTela').evaluate()
+  return HtmlService.createTemplate(PainelFaltantes.arquivoTela('PainelTela')).evaluate()
     .setTitle('Faltantes na Aduana · SSP53')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1');
 }
-function painelIncluir(nome) { return HtmlService.createHtmlOutputFromFile(nome).getContent(); }
+function painelIncluir(nome) { return PainelFaltantes.arquivoTela(nome); }
+/** Rode UMA vez: cria o gatilho que prepara os dados a cada 5 min (só mexe no próprio gatilho). */
+function painelCriarGatilho() {
+  ScriptApp.getProjectTriggers().filter((t) => t.getHandlerFunction() === 'painelPreparar').forEach((t) => ScriptApp.deleteTrigger(t));
+  ScriptApp.newTrigger('painelPreparar').timeBased().everyMinutes(PainelFaltantes.CFG.PREPARAR_MIN).create();
+  painelPreparar();
+  console.log('Gatilho criado: os dados do painel são preparados a cada ' + PainelFaltantes.CFG.PREPARAR_MIN + ' min.');
+}
+function painelPreparar() {
+  const r = PainelFaltantes.preparar();
+  console.log('Preparados: ' + (r.dias.join(', ') || 'nenhum dia recente') + ' em ' + r.segundos + ' s');
+}
 function painelListarDias() { return PainelFaltantes.listarDias(); }
 function painelDadosDoDia(dia, forcar) {
   const d = PainelFaltantes.dadosDoDia(dia, !!forcar);

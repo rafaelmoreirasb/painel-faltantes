@@ -58,7 +58,11 @@ Tipo do pacote / Tipo ficam em branco até chegar a aba que diferencia separáve
   domínio dhl.com — NÃO é pública; a consulta pública `gviz` não funciona). Publicado com "Execute as: Me" e
   "Anyone within DHL Group". Todo código do painel fica num objeto `PainelFaltantes` + funções soltas com prefixo
   `painel…`, porque divide o projeto **"Importar Relatórios"** (projeto solto, NÃO preso à planilha: abrir sempre por ID) e o espaço de nomes global com o importador.
-- Painel lê só o trecho de linhas dos dias D..D+2 (acha pela coluna de data) e guarda o resultado 5 min no CacheService.
+- Painel lê só o trecho de linhas dos dias D..D+2 (acha pela coluna de data). Gatilho `painelPreparar` (5 min) pré-calcula
+  os dias dos últimos 4 dias no CacheService (6 h); o painel abre do cache.
+- **`PainelTela.html` e `Regras.html` são servidos do GitHub** (raw, branch main, cache 5 min; reserva = cópia no projeto):
+  mudança de visual/regras = só commit+push, sem o Rafael colar nada. Mudança em `Painel.gs` exige ele colar e publicar
+  New version — então a tela NUNCA pode depender de função nova do servidor sem checar se ela existe (compatibilidade).
 - Regras: `regras/REGRAS.md` (português) → `apps-script/painel/Regras.html` (`classificar(pacote)`). Regras antigas (14) NÃO
   são usadas; o Rafael vai mandar regras novas, iguais para separáveis e volumosos.
 - Testes locais: o servidor do painel e o importador rodam no Node com SpreadsheetApp simulado e os CSV/dados reais;

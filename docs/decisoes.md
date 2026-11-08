@@ -20,3 +20,4 @@
 | 08/11/2026 | Planilha fica na conta DHL (não copiar para a conta pessoal) | Uma cópia pessoal deixaria de receber dados novos e pode ir contra a política de dados da DHL; o Web App já resolve o acesso |
 | 08/11/2026 | Painel publicado (Web App, DHL) e validado: classificação gravada na aba Classificação manual com o e-mail de quem classificou | Teste do Rafael com o pacote 48392044463 (06/11) |
 | 08/11/2026 | Painel continua "Anyone within DHL Group" | A opção "Anyone" está bloqueada pelo administrador da DHL. Abrir de fora: entrar com a conta DHL no navegador. Liberar só via TI |
+| 08/11/2026 | Painel com dados pré-calculados (gatilho 5 min) e tela/regras servidas do GitHub | Rafael achou lento e trabalhoso; pediu conta pessoal + público, recusado por contornar bloqueio da DHL. Risco aceito: quem altera o repositório altera o painel |

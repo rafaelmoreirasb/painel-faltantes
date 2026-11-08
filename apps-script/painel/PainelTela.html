@@ -152,7 +152,7 @@
 
   async function atualizar(forcar) {
     if (S.carregando) return;
-    S.carregando = true; status('load'); $('#btnAtualizar').disabled = true;
+    S.carregando = true; S.forcando = !!forcar; status('load'); $('#btnAtualizar').disabled = true;
     try {
       S.dias = await chamar('painelListarDias');
       if (!S.dias.length) { aviso('Ainda não há faltantes na aba Aduana.'); S.dia = null; S.pacotes = []; render(); return; }
@@ -283,7 +283,7 @@
   function aviso(t, erro) { const el = $('#msg'); el.textContent = t || ''; el.hidden = !t; el.classList.toggle('err', !!erro); }
   function status(estado) {
     $('#dot').className = 'dot' + (estado === 'ok' ? '' : estado === 'load' ? ' load' : ' off');
-    $('#atualizado').textContent = estado === 'load' ? 'Atualizando…' : S.ultima ? 'Atualizado às ' + hm(S.ultima) + (S.geradoEm ? ' (dados de ' + hm(S.geradoEm) + ')' : '') : 'Sem dados';
+    $('#atualizado').textContent = estado === 'load' ? (S.forcando ? 'Relendo a planilha… pode levar uns 10 s' : 'Atualizando…') : S.geradoEm ? 'Dados preparados às ' + hm(S.geradoEm) + ' · conferido às ' + hm(S.ultima) : 'Sem dados';
   }
   function desenharDias() {
     $('#selDia').innerHTML = S.dias.map((d) => '<option value="' + esc(d.dia) + '"' + (d.dia === S.dia ? ' selected' : '') + '>' + esc(d.dia) + ' · ' + fmt(d.n) + ' faltantes</option>').join('');

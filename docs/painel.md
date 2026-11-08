@@ -18,7 +18,12 @@ Código: [`apps-script/painel/`](../apps-script/painel/) — 3 arquivos: `Painel
 - **Sua classificação**: nas duas últimas colunas você escolhe/escreve a classificação e o raciocínio. Salva sozinho ao sair
   do campo, na aba **Classificação manual** (com o e-mail de quem classificou). Também dá para escrever direto na aba.
 - **Bipes novos** (amarelo): o que apareceu desde a última vez que você abriu o painel neste navegador.
-- Atualiza sozinho a cada 5 min. O botão **Atualizar agora** relê a planilha na hora.
+- **Rápido**: um gatilho (`painelPreparar`, a cada 5 min) deixa prontos os dias com faltantes dos últimos 4 dias. O painel
+  abre em 1–2 s e mostra "Dados preparados às HH:MM". Dias mais antigos são calculados na 1ª vez (~10 s) e ficam guardados 6 h.
+- Atualiza sozinho a cada 5 min. O botão **Atualizar agora** relê a planilha na hora (~10 s).
+- **A tela e as regras vêm do GitHub**: `PainelTela.html` e `Regras.html` são buscados em
+  `raw.githubusercontent.com/rafaelmoreirasb/painel-faltantes/main/apps-script/painel/` (guardados 5 min). Se o GitHub
+  falhar, usa as cópias do projeto. ⚠️ Quem puder alterar o repositório muda o painel — hoje só o Rafael (e o Claude).
 
 ## Instalar (uma vez)
 1. Abra o projeto de Apps Script **Importar Relatórios** (o mesmo do importador; em script.google.com).
@@ -29,8 +34,9 @@ Código: [`apps-script/painel/`](../apps-script/painel/) — 3 arquivos: `Painel
    - **HTML** chamado `Regras` → conteúdo de `apps-script/painel/Regras.html`
    (Os nomes têm que ser exatamente esses; o Google acrescenta `.gs`/`.html` sozinho. O Apps Script não aceita dois
    arquivos com o mesmo nome, mesmo de tipos diferentes — por isso a tela não se chama `Painel`.)
-3. Salve. Escolha a função **painelTestar** e clique em **Run**. Aceite as permissões.
-   Em **Execution log** deve aparecer algo como "05/11/2026: 46 faltantes, 0 sem conteinerização no dia, 4.2 s".
+3. Salve. Escolha a função **painelCriarGatilho** e clique em **Run**. Aceite as permissões (inclui "conectar a um
+   serviço externo", que é o GitHub). Em **Execution log** deve aparecer "Preparados: …" e "Gatilho criado".
+   (Para conferir só a leitura, há também **painelTestar**.)
 4. **Deploy** (Implantar) › **New deployment** (Nova implantação) › engrenagem › **Web app**.
    - Description: `Painel de faltantes`
    - **Execute as: Me** (Eu)
@@ -41,19 +47,20 @@ Código: [`apps-script/painel/`](../apps-script/painel/) — 3 arquivos: `Painel
 
 ## Como pedir e aplicar uma alteração (layout, regras, colunas…)
 1. **Peça ao Claude** na conversa do tópico ("Faltantes · Painel", "Faltantes · Regras"…), em português normal.
-2. **O Claude altera, testa com dados reais e envia para o GitHub**, e diz no fim **quais arquivos mudaram**
-   (quase sempre só um: `PainelTela.html` = visual · `Regras.html` = regras · `Painel.gs` = leitura dos dados).
-3. **Você cola** o arquivo que mudou no Apps Script (abra o arquivo › selecione tudo › cole o novo) e salve.
-4. **Você publica a versão nova** — colar o código **não** muda o painel publicado sozinho:
-   **Deploy › Manage deployments** (Gerenciar implantações) › lápis (Editar) › **Version: New version** › **Deploy**.
-   O link continua o mesmo. Recarregue o painel para ver a mudança.
-
-Dá para automatizar os passos 3–4, mas exigiria guardar uma credencial da conta DHL no GitHub; não fazer sem a TI.
+2. **O Claude altera, testa com dados reais e envia para o GitHub**, e diz no fim **quais arquivos mudaram**.
+3. Depende do arquivo:
+   - **`PainelTela.html` (visual) ou `Regras.html` (regras)** → **você não faz nada.** Em até 5 min o painel já mostra a
+     versão nova (recarregue a página).
+   - **`Painel.gs` (leitura dos dados — raro)** → cole o arquivo no Apps Script, salve e publique a versão nova:
+     **Deploy › Manage deployments** › lápis › **Version: New version** › **Deploy**. O link continua o mesmo.
+     (Quando isso acontecer, o Claude avisa — e cuida para a tela nova continuar funcionando com o `Painel.gs` antigo
+     até você publicar.)
 
 ## Problemas comuns
 | O que aparece | O que fazer |
 |---|---|
 | "Não foi possível atualizar: Aba … não existe" | O nome da aba mudou na planilha. Me avise o nome novo. |
-| Painel lento na primeira vez do dia | Normal: lê ~1 milhão de células. Depois fica guardado por 5 min. |
+| "Dados preparados às" com horário velho (mais de 10 min) | O gatilho parou: em **Triggers** confira `painelPreparar`; se não estiver, rode `painelCriarGatilho`. |
+| Painel lento ao abrir um dia antigo | Normal na 1ª vez (~10 s); depois fica guardado 6 h. |
 | "Você precisa de permissão" ao abrir o link | A pessoa não está logada com conta DHL, ou o acesso não está como "Anyone within DHL Group". |
 | Classificação não salva | A conta que publicou (Execute as: Me) precisa ser editora da planilha. |
