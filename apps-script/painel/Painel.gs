@@ -16,6 +16,7 @@ const PainelFaltantes = (() => {
     DIAS_LEITURA: 3,   // lê o dia analisado e os 2 seguintes
     CACHE_SEG: 300,    // guarda o resultado por 5 min (várias pessoas abrindo ao mesmo tempo)
     ABA_MANUAL: 'Classificação manual',
+    PLANILHA_ID: '1nDqe83XDoY-A3u6rNxaMP2RT74mZNjrYSDUY2c9dKhk', // Conteneirização de Pacotes - Base SSP53
   };
 
   /* Cada aba que entra na linha do tempo. "data" é a coluna usada para achar as linhas dos dias. */
@@ -70,7 +71,14 @@ const PainelFaltantes = (() => {
     return pad(m[1]) + '/' + pad(m[2]) + '/' + (m[3].length === 2 ? '20' + m[3] : m[3]);
   }
 
-  const planilha = () => SpreadsheetApp.getActiveSpreadsheet();
+  /** Abre a planilha pelo ID (o projeto pode ou não estar preso à planilha). Guarda para não abrir duas vezes. */
+  let _ss = null;
+  function planilha() {
+    if (_ss) return _ss;
+    const ativa = SpreadsheetApp.getActiveSpreadsheet();
+    _ss = ativa && ativa.getId() === CFG.PLANILHA_ID ? ativa : SpreadsheetApp.openById(CFG.PLANILHA_ID);
+    return _ss;
+  }
 
   /** Lê uma aba devolvendo só as colunas pedidas (pelo nome do cabeçalho) e, se der, só as linhas dos dias pedidos. */
   function lerAba(fonte, dias) {
@@ -234,7 +242,7 @@ const PainelFaltantes = (() => {
     }
   }
 
-  return { CFG, FONTES, listarDias, dadosDoDia, lerManual, salvarClassificacao, lerDataHora, diaDe };
+  return { CFG, FONTES, listarDias, dadosDoDia, lerManual, salvarClassificacao, lerDataHora, diaDe, planilha };
 })();
 
 /* ===== Funções que o Google chama (precisam ficar soltas, com nomes únicos no projeto) ===== */
@@ -247,7 +255,7 @@ function painelIncluir(nome) { return HtmlService.createHtmlOutputFromFile(nome)
 function painelListarDias() { return PainelFaltantes.listarDias(); }
 function painelDadosDoDia(dia, forcar) {
   const d = PainelFaltantes.dadosDoDia(dia, !!forcar);
-  return JSON.stringify({ dados: d, manual: PainelFaltantes.lerManual(), url: SpreadsheetApp.getActiveSpreadsheet().getUrl() });
+  return JSON.stringify({ dados: d, manual: PainelFaltantes.lerManual(), url: PainelFaltantes.planilha().getUrl() });
 }
 function painelSalvarClassificacao(dia, id, classificacao, raciocinio) {
   return PainelFaltantes.salvarClassificacao(dia, id, classificacao, raciocinio);

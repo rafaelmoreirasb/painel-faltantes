@@ -54,7 +54,7 @@ Tipo do pacote / Tipo ficam em branco até chegar a aba que diferencia separáve
 - **Painel = Web App do Apps Script** (planilha é da conta DHL rafael.dasilvabarbosa@dhl.com, compartilhada só com o
   domínio dhl.com — NÃO é pública; a consulta pública `gviz` não funciona). Publicado com "Execute as: Me" e
   "Anyone within DHL Group". Todo código do painel fica num objeto `PainelFaltantes` + funções soltas com prefixo
-  `painel…`, porque divide o projeto (e o espaço de nomes global) com o importador e possivelmente o script do Histórico.
+  `painel…`, porque divide o projeto **"Importar Relatórios"** (projeto solto, NÃO preso à planilha: abrir sempre por ID) e o espaço de nomes global com o importador.
 - Painel lê só o trecho de linhas dos dias D..D+2 (acha pela coluna de data) e guarda o resultado 5 min no CacheService.
 - Regras: `regras/REGRAS.md` (português) → `apps-script/painel/Regras.html` (`classificar(pacote)`). Regras antigas (14) NÃO
   são usadas; o Rafael vai mandar regras novas, iguais para separáveis e volumosos.

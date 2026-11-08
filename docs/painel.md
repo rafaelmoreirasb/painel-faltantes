@@ -19,8 +19,8 @@ Código: [`apps-script/painel/`](../apps-script/painel/) — 3 arquivos: `Painel
 - Atualiza sozinho a cada 5 min. O botão **Atualizar agora** relê a planilha na hora.
 
 ## Instalar (uma vez)
-1. Abra a planilha **Conteneirização de Pacotes - Base SSP53** › **Extensões › Apps Script**
-   (o mesmo projeto onde está o `importar-relatorios`).
+1. Abra o projeto de Apps Script **Importar Relatórios** (o mesmo do importador; em script.google.com).
+   O projeto não precisa estar preso à planilha: o painel abre a planilha pelo ID.
 2. Crie os 3 arquivos (botão **+** ao lado de **Files**) e cole o conteúdo do GitHub:
    - **Script** chamado `Painel` → conteúdo de `apps-script/painel/Painel.gs`
    - **HTML** chamado `PainelTela` → conteúdo de `apps-script/painel/PainelTela.html`
