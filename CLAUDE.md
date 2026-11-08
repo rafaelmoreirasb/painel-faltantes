@@ -37,6 +37,7 @@ atualize os arquivos do repositório — é aqui que o conhecimento fica, não n
 | Aduana, Auditoria de Carrinho, Problem Solving | Rafael exporta 3 CSV por dia e joga na pasta do Drive **Faltantes – Entrada** → `apps-script/importar-relatorios.gs` (a cada 15 min; ver `docs/importador.md`). Quando o acesso às queries sair, desligar esse gatilho. |
 | Inventário, Tratativas | já se atualizam sozinhos |
 | Torre Aduana | ? (confirmar com o Rafael) |
+| Regras | o Rafael edita (ordem, liga/desliga, texto); criada por `painelCriarAbaRegras` |
 | Classificação manual | o Rafael classifica no painel (ou direto na aba); o painel grava Data, Shipment ID, Classificação, Raciocínio, Quem classificou |
 
 **Retenção:** a planilha principal guarda só os últimos **15 dias** dessas 3 abas; toda madrugada o resto vai para
@@ -59,7 +60,9 @@ Tipo do pacote / Tipo ficam em branco até chegar a aba que diferencia separáve
   "Anyone within DHL Group". Todo código do painel fica num objeto `PainelFaltantes` + funções soltas com prefixo
   `painel…`, porque divide o projeto **"Importar Relatórios"** (projeto solto, NÃO preso à planilha: abrir sempre por ID) e o espaço de nomes global com o importador.
 - Painel lê só o trecho de linhas dos dias D..D+2 (acha pela coluna de data) e guarda o resultado 5 min no CacheService.
-- Regras: `regras/REGRAS.md` (português) → `apps-script/painel/Regras.html` (`classificar(pacote)`). Regras antigas (14) NÃO
+- Linha do tempo: começa no **sorting** = 1º bipe do pacote no dia na aba Histórico (qualquer processo) e vai até 36 h depois.
+- Regras: `regras/REGRAS.md` (português, explicação) + aba **`Regras`** da planilha (ordem, Ligada Sim/Não, texto do resultado —
+  o Rafael edita sozinho) + `apps-script/painel/Regras.html` (objeto `LOGICA`: o que cada Código verifica). Regras antigas (14) NÃO
   são usadas; o Rafael vai mandar regras novas, iguais para separáveis e volumosos.
 - Testes locais: o servidor do painel e o importador rodam no Node com SpreadsheetApp simulado e os CSV/dados reais;
   a tela roda no Playwright com `google.script.run` simulado.
