@@ -31,8 +31,9 @@ Código: [`apps-script/painel/`](../apps-script/painel/) — 3 arquivos: `Painel
   por dia, **erros de conteinerização por responsável e por ilha**, resultados e a lista de pacotes. Clicar num dia abre o
   detalhe com a linha do tempo. Os dados vêm da aba **Resumo diário**, que o gatilho preenche sozinho (1 linha por faltante
   por dia) — por isso o mês continua disponível mesmo depois que a planilha arquiva os dados com mais de 15 dias.
-- **Responsáveis por ilha** (no dia): uma caixa por ilha (letra da rota: A1, A2… = ilha **A**), com os nomes da aba
-  **Colaboradores** (coluna "Nome") e o botão "Copiar do dia anterior". Fica na aba **Responsáveis**. Pacote com
+- **Responsáveis por ilha** (no dia): uma caixa por ilha (letra da rota: A1, A2… = ilha **A**) com uma **lista** dos nomes da
+  aba **Colaboradores** (coluna "Nome"; só o nome é lido), o botão "Copiar do dia anterior" e o campo **Acrescentar ilha**
+  (digitar a letra + escolher o nome) para ilhas que não apareceram nas rotas do dia. Fica na aba **Responsáveis**. Pacote com
   **erro de conteinerização** mostra "cobrar: Nome"; o cartão "Erros de conteinerização do dia por responsável" resume.
   (Vale para todos os pacotes até existir a aba que diz o que é volumoso.)
 - **Bipes novos** (amarelo): o que apareceu desde a última vez que você abriu o painel neste navegador.
