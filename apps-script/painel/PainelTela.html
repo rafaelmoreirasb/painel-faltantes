@@ -138,6 +138,17 @@
   .ilhas { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
   .ilha { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
   .ilha input, .ilha select { width: 100%; min-width: 0; }
+  .menu { display: flex; flex-wrap: wrap; gap: 4px; }
+  .menu a { color: var(--preto); padding: 10px 14px; border-radius: var(--raio); text-decoration: none; font-weight: 600; font-size: 14px; }
+  .menu a:hover { color: var(--preto); background: rgba(255, 255, 255, .45); }
+  .menu a[aria-current="page"] { color: var(--branco); background: var(--vermelho); font-weight: 700; }
+  .linhas-resp { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
+  .linha-resp { display: grid; grid-template-columns: 90px 1fr; gap: 4px 10px; align-items: end; padding: 12px; border: 1px solid var(--cinza-borda); border-radius: var(--raio-cartao); background: var(--cinza-zebra); }
+  .linha-resp label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; min-width: 0; }
+  .linha-resp .ilha-letra { width: 100%; text-transform: uppercase; font-family: var(--f-mono); font-weight: 700; text-align: center; }
+  .linha-resp select, .linha-resp input { width: 100%; min-width: 0; }
+  .linha-resp .st { grid-column: 1 / -1; }
+  input[type=date] { font-family: var(--f-mono); }
   .nova-ilha { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; padding-top: 12px; border-top: 1px dashed var(--cinza-borda); }
   .nova-ilha label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; }
   .nova-ilha #novaIlha { width: 90px; text-transform: uppercase; font-family: var(--f-mono); }
@@ -165,6 +176,10 @@
         <div class="marca-subtitulo">Mirassol SSP53</div>
       </div>
     </div>
+    <nav class="menu" id="menu" aria-label="Abas do painel">
+      <a href="#" data-aba="faltantes" aria-current="page">Faltantes</a>
+      <a href="#" data-aba="responsaveis">Responsáveis por ilha</a>
+    </nav>
     <div class="status">
       <span><span id="dot" class="dot load"></span><span id="atualizado">Carregando…</span></span>
       <button id="btnAtualizar" type="button">↻ Atualizar agora</button>
@@ -173,7 +188,7 @@
 </header>
 <div class="wrap">
 
-  <div class="controls">
+  <div class="controls" id="controlesFaltantes">
     <label>Período<select id="selModo" aria-label="Período" disabled>
       <option value="dia">Um dia</option><option value="semana">Semana</option><option value="mes">Mês</option><option value="escolher">Escolher dias</option>
     </select></label>
@@ -208,11 +223,16 @@
   const curto = (d) => pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + ' ' + hm(d);
   const fmt = (n) => Number(n).toLocaleString('pt-BR');
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const chamar = (fn, ...args) => new Promise((ok, erro) => google.script.run.withSuccessHandler(ok).withFailureHandler(erro)[fn](...args));
+  const chamar = (fn, ...args) => new Promise((ok, erro) => {
+    const r = google.script.run.withSuccessHandler(ok).withFailureHandler(erro);
+    if (typeof r[fn] !== 'function') return erro(new Error('Função ' + fn + ' não encontrada no servidor (Painel.gs antigo)'));
+    r[fn](...args);
+  });
 
   /* ---------- estado ---------- */
   const S = { dias: [], dia: null, pacotes: [], manual: {}, filtro: null, busca: '', vistosAntes: null, carregando: false, ultima: null, avisos: [], url: '', segundos: 0, regras: [], abaRegras: true, servidor: 1, soConflitos: false,
-    modo: 'dia', semana: '', mes: '', escolhidos: [], periodo: null, resp: null, buscaPer: '', diasResumo: [] };
+    modo: 'dia', semana: '', mes: '', escolhidos: [], periodo: null, resp: null, buscaPer: '', diasResumo: [],
+    aba: 'faltantes', respDia: '', respAba: null, respLinhas: [], respErro: '' };
   const manualDe = (p) => S.manual[p.dia + '|' + p.id] || S.manual['*|' + p.id] || null;
   const resultado = (p) => { const m = manualDe(p); return m && m.classificacao ? m.classificacao : p.regra.resultado; };
 
@@ -231,6 +251,7 @@
     if (S.carregando) return;
     S.carregando = true; S.forcando = !!forcar; status('load'); $('#btnAtualizar').disabled = true;
     try {
+      if (S.aba === 'responsaveis') { await carregarRespAba(); S.ultima = new Date(); S.geradoEm = null; aviso(''); render(); status('ok'); return; }
       S.dias = await chamar('painelListarDias', !!forcar);
       if (!S.dias.length) { aviso('Ainda não há faltantes na aba Aduana.'); S.dia = null; S.pacotes = []; render(); return; }
       if (!S.dia || !S.dias.some((d) => d.dia === S.dia)) {
@@ -437,67 +458,129 @@
     const bx = $('#buscaPer'); let tm; bx.oninput = () => { clearTimeout(tm); tm = setTimeout(() => { S.buscaPer = bx.value; const pos = bx.selectionStart; renderPeriodo(); const nb = $('#buscaPer'); nb.focus(); try { nb.setSelectionRange(pos, pos); } catch (e) {} }, 250); };
   }
 
-  /* ---------- responsáveis por ilha (visão do dia) ---------- */
+  /* ---------- responsáveis por ilha ---------- */
   const ilhaDe = (rota) => { const mm = String(rota || '').trim().toUpperCase().match(/^([A-Z]+)\d/); return mm ? mm[1] : ''; };
   const respDe = (p) => (S.resp && S.resp.mapa[ilhaDe(p.rota)]) || '';
+  const LINHAS_INICIAIS = 6;
+
+  /** Aba Faltantes: só o resumo dos erros de conteinerização do dia por responsável (o preenchimento fica na aba Responsáveis). */
   function cartaoResponsaveis() {
     if (S.servidor < 3) return '<p class="note">Para ver o indicador de semana/mês e os responsáveis por ilha, atualize o <b>Painel.gs</b> (cole a versão nova e publique uma nova versão).</p>';
     if (!S.resp) return '';
-    const R = S.resp;
-    $('#lista-colab').innerHTML = (R.colaboradores || []).map((n) => '<option value="' + esc(n) + '">').join('');
     const erros = S.pacotes.filter((p) => ehErroCont(resultado(p)));
     const porResp = new Map(); erros.forEach((p) => { const k = respDe(p) || 'Sem responsável cadastrado'; if (!porResp.has(k)) porResp.set(k, []); porResp.get(k).push(p); });
-    const faltam = R.ilhas.filter((i) => !R.mapa[i]).length;
-    const ant = R.anterior && Object.keys(R.anterior.mapa || {}).length ? '<button type="button" class="chip" id="copiarAnt">Copiar do dia anterior (' + esc(R.anterior.dia.slice(0, 5)) + ')</button>' : '';
-    return '<section class="card" id="responsaveis"><div class="tools"><h2>Responsáveis por ilha</h2>' + ant + '</div>' +
-      '<p class="note">Uma pessoa por ilha (letra da rota: A1, A2… = ilha A) neste dia. Escolha o nome na lista; salva sozinho. Falta alguma ilha? Use "Acrescentar ilha" no fim. ' +
-      ((R.colaboradores || []).length ? 'Os nomes vêm da aba <b>Colaboradores</b>.' : 'Crie a aba <b>Colaboradores</b> (coluna "Nome") para o painel sugerir os nomes.') +
-      (faltam ? ' <b>' + faltam + '</b> ilha' + (faltam > 1 ? 's' : '') + ' sem responsável.' : '') + '</p>' +
-      '<div class="ilhas">' + R.ilhas.map((i) => '<label class="ilha"><span>Ilha <b>' + esc(i) + '</b></span>' + campoNome(R, 'data-ilha="' + esc(i) + '" id="resp-' + esc(i) + '"', R.mapa[i] || '', (R.anterior && R.anterior.mapa[i]) ? 'ontem: ' + R.anterior.mapa[i] : '') + '<span class="st" id="st-resp-' + esc(i) + '"></span></label>').join('') + '</div>' +
-      '<div class="nova-ilha"><label>Acrescentar ilha (letra da rota)<input type="text" id="novaIlha" maxlength="3" placeholder="ex.: B" autocomplete="off"></label>' +
-      '<label>Responsável' + campoNome(R, 'id="novaIlhaNome"', '', '') + '</label><button type="button" id="btnNovaIlha">Acrescentar</button><span class="st" id="st-nova-ilha"></span></div>' +
-      '<h2 style="margin-top:6px">Erros de conteinerização do dia por responsável</h2>' +
+    const nResp = Object.values(S.resp.mapa || {}).filter(Boolean).length;
+    return '<section class="card" id="errosResp"><div class="tools"><h2>Erros de conteinerização do dia por responsável</h2><a href="#" id="irResp">Preencher responsáveis por ilha ›</a></div>' +
+      '<p class="note">' + (nResp ? '<b>' + nResp + '</b> ilha' + (nResp > 1 ? 's' : '') + ' com responsável em ' + esc(S.dia.slice(0, 5)) + '.' : 'Nenhum responsável preenchido para ' + esc(S.dia.slice(0, 5)) + '.') + ' A ilha é a letra da rota (A1, A2… = ilha A).</p>' +
       (erros.length ? '<div class="bars">' + [...porResp.entries()].sort((a, b) => b[1].length - a[1].length).map(([k, ps]) => '<div class="row"><span class="t">' + esc(k) + '<span class="sub">' + esc(ps.map((p) => p.rota + ' · ' + p.id).join(' | ')) + '</span></span><span class="track"><span class="fill" style="display:block;width:' + (100 * ps.length / erros.length) + '%;background:var(--vermelho)"></span></span><span class="n">' + ps.length + '</span></div>').join('') + '</div>'
         : '<p class="note">Nenhum erro de conteinerização neste dia.</p>') + '</section>';
   }
+
   /** Campo do nome: lista com os nomes da aba Colaboradores (sem a aba: texto livre). Mantém um nome antigo que não está na lista. */
-  function campoNome(R, attrs, valor, dica) {
+  function campoNome(R, attrs, valor) {
     const nomes = R.colaboradores || [];
-    if (!nomes.length) return '<input type="text" ' + attrs + ' value="' + esc(valor) + '" placeholder="' + esc(dica || 'nome') + '">';
+    if (!nomes.length) return '<input type="text" ' + attrs + ' value="' + esc(valor) + '" placeholder="nome">';
     const lista = valor && !nomes.includes(valor) ? [valor].concat(nomes) : nomes;
-    return '<select ' + attrs + '><option value="">' + esc(dica ? '— escolher (' + dica + ') —' : '— escolher —') + '</option>' +
+    return '<select ' + attrs + '><option value="">— escolher —</option>' +
       lista.map((n) => '<option value="' + esc(n) + '"' + (n === valor ? ' selected' : '') + '>' + esc(n) + '</option>').join('') + '</select>';
   }
-  async function acrescentarIlha() {
-    const st = $('#st-nova-ilha');
-    const ilha = String($('#novaIlha').value || '').trim().toUpperCase();
-    const nome = String($('#novaIlhaNome').value || '').trim();
-    if (!/^[A-Z]{1,3}$/.test(ilha)) { st.textContent = 'Digite só a letra da rota (ex.: B).'; st.classList.add('err'); return; }
-    if (S.resp.ilhas.includes(ilha)) { if (nome) { await salvarResp(ilha, nome, st); } else { const el = document.getElementById('resp-' + ilha); if (el) el.focus(); } return; }
-    st.textContent = 'Salvando…'; st.classList.remove('err');
-    try {
-      await chamar('painelSalvarResponsavel', S.dia, ilha, nome);
-      S.resp.ilhas = S.resp.ilhas.concat(ilha).sort(); S.resp.mapa[ilha] = nome;
-      render();
-      const s2 = document.getElementById('st-resp-' + ilha); if (s2) s2.textContent = 'Ilha acrescentada';
-    } catch (e) { st.textContent = 'Não salvou: ' + (e && e.message ? e.message : e); st.classList.add('err'); }
+
+  /* Aba "Responsáveis por ilha": cada dia começa com 6 linhas em branco (letra da ilha + nome); dá para acrescentar mais. */
+  const isoDe = (dmy) => { const d = dataDe(dmy); return d ? d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) : ''; };
+  const dmyDeIso = (iso) => { const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? m[3] + '/' + m[2] + '/' + m[1] : ''; };
+  function montarLinhas() {
+    const mapa = (S.respAba && S.respAba.mapa) || {};
+    const linhas = Object.keys(mapa).filter((i) => mapa[i]).sort().map((i) => ({ ilha: i, nome: mapa[i], salva: i }));
+    while (linhas.length < LINHAS_INICIAIS) linhas.push({ ilha: '', nome: '', salva: '' });
+    S.respLinhas = linhas;
   }
-  async function salvarResp(ilha, nome, st) {
-    if ((S.resp.mapa[ilha] || '') === nome) return;
-    st.textContent = 'Salvando…'; st.classList.remove('err');
-    try { await chamar('painelSalvarResponsavel', S.dia, ilha, nome); S.resp.mapa[ilha] = nome; render(); const s2 = document.getElementById('st-resp-' + ilha); if (s2) s2.textContent = 'Salvo'; }
-    catch (e) { st.textContent = 'Não salvou: ' + (e && e.message ? e.message : e); st.classList.add('err'); }
+  async function carregarRespAba() {
+    if (!S.respDia) S.respDia = dmyD(new Date());
+    try {
+      S.respAba = JSON.parse(await chamar('painelResponsaveis', S.respDia));
+      S.respErro = '';
+      if (S.servidor < 3) S.servidor = 3;
+    } catch (e) {
+      S.respAba = null;
+      const msg = String(e && e.message ? e.message : e);
+      S.respErro = /painelResponsaveis|not found|não encontrad|undefined/i.test(msg)
+        ? 'Para usar esta aba, atualize o Painel.gs (cole a versão nova e publique uma nova versão).' : 'Não foi possível carregar: ' + msg;
+    }
+    montarLinhas();
+  }
+  function renderResponsaveisAba() {
+    const m = $('#conteudo');
+    if (S.respErro) { m.innerHTML = '<p class="msg err">' + esc(S.respErro) + '</p>'; return; }
+    const R = S.respAba;
+    if (!R) { m.innerHTML = ''; return; }
+    const ant = R.anterior && Object.values(R.anterior.mapa || {}).some(Boolean) ? R.anterior : null;
+    const preenchidas = S.respLinhas.filter((l) => l.salva && l.nome).length;
+    m.innerHTML = '<section class="card" id="responsaveis"><div class="tools"><h2>Responsáveis por ilha</h2>' +
+        (ant ? '<button type="button" class="chip" id="copiarAnt">Copiar do dia anterior (' + esc(ant.dia.slice(0, 5)) + ')</button>' : '') + '</div>' +
+      '<div class="controls"><label>Dia<input type="date" id="respDia" value="' + isoDe(S.respDia) + '"></label></div>' +
+      '<p class="note">Em cada linha, digite a <b>letra da ilha</b> (a letra da rota: A1, A2… = ilha <b>A</b>) e escolha o <b>responsável</b>. Salva sozinho. ' +
+        ((R.colaboradores || []).length ? 'Os nomes vêm da aba <b>Colaboradores</b>.' : 'Crie a aba <b>Colaboradores</b> (coluna "Nome") para aparecer a lista de nomes.') +
+        ' <b>' + preenchidas + '</b> ilha' + (preenchidas === 1 ? '' : 's') + ' preenchida' + (preenchidas === 1 ? '' : 's') + ' em ' + esc(S.respDia) + '.</p>' +
+      '<div class="linhas-resp">' + S.respLinhas.map((l, i) => '<div class="linha-resp" data-linha="' + i + '">' +
+          '<label>Ilha<input type="text" class="ilha-letra" data-campo="ilha" maxlength="3" value="' + esc(l.ilha) + '" placeholder="A" autocomplete="off" aria-label="Letra da ilha da linha ' + (i + 1) + '"></label>' +
+          '<label>Responsável' + campoNome(R, 'data-campo="nome" aria-label="Responsável da linha ' + (i + 1) + '"', l.nome) + '</label>' +
+          '<span class="st" id="st-linha-' + i + '"></span></div>').join('') + '</div>' +
+      '<div><button type="button" id="maisIlha">+ Acrescentar ilha</button></div></section>';
+    $('#respDia').onchange = (e) => { const d = dmyDeIso(e.target.value); if (d) { S.respDia = d; atualizar(false); } };
+    const ca = $('#copiarAnt'); if (ca) ca.onclick = copiarAnterior;
+    $('#maisIlha').onclick = () => { S.respLinhas.push({ ilha: '', nome: '', salva: '' }); renderResponsaveisAba(); const ls = document.querySelectorAll('.ilha-letra'); ls[ls.length - 1].focus(); };
+    m.querySelectorAll('.linha-resp').forEach((div) => {
+      const i = Number(div.dataset.linha);
+      div.querySelectorAll('[data-campo]').forEach((el) => {
+        el.onchange = () => { const l = S.respLinhas[i]; if (el.dataset.campo === 'ilha') { el.value = el.value.trim().toUpperCase(); l.ilha = el.value; } else l.nome = el.value.trim(); salvarLinha(i); };
+      });
+    });
+  }
+  async function salvarLinha(i) {
+    const l = S.respLinhas[i];
+    const st = document.getElementById('st-linha-' + i);
+    const msg = (t, err) => { if (st) { st.textContent = t; st.classList.toggle('err', !!err); } };
+    if (l.ilha && !/^[A-Z]{1,3}$/.test(l.ilha)) return msg('Digite só a letra da ilha (ex.: A).', true);
+    if (l.ilha && S.respLinhas.some((o, j) => j !== i && o.ilha === l.ilha)) return msg('A ilha ' + l.ilha + ' já está em outra linha.', true);
+    if (!l.ilha && !l.salva) return msg(l.nome ? 'Falta a letra da ilha.' : '');
+    msg('Salvando…');
+    try {
+      if (l.salva && l.salva !== l.ilha) { await chamar('painelSalvarResponsavel', S.respDia, l.salva, ''); S.respAba.mapa[l.salva] = ''; }
+      if (l.ilha) { await chamar('painelSalvarResponsavel', S.respDia, l.ilha, l.nome); S.respAba.mapa[l.ilha] = l.nome; }
+      l.salva = l.ilha;
+      msg(l.ilha ? (l.nome ? 'Salvo' : 'Salvo (sem responsável)') : 'Linha apagada');
+      if (S.resp && S.dia === S.respDia) S.resp.mapa = Object.assign({}, S.respAba.mapa);
+    } catch (e) { msg('Não salvou: ' + (e && e.message ? e.message : e), true); }
   }
   async function copiarAnterior() {
-    const ant = S.resp.anterior.mapa;
-    for (const i of S.resp.ilhas) if (ant[i] && !S.resp.mapa[i]) { try { await chamar('painelSalvarResponsavel', S.dia, i, ant[i]); S.resp.mapa[i] = ant[i]; } catch (e) { aviso('Não salvou a ilha ' + i + ': ' + e.message, true); break; } }
-    render();
+    const ant = S.respAba.anterior.mapa;
+    for (const ilha of Object.keys(ant).sort()) {
+      if (!ant[ilha] || S.respLinhas.some((l) => l.ilha === ilha)) continue;
+      let l = S.respLinhas.find((x) => !x.ilha && !x.salva);
+      if (!l) { l = { ilha: '', nome: '', salva: '' }; S.respLinhas.push(l); }
+      l.ilha = ilha; l.nome = ant[ilha];
+      try { await chamar('painelSalvarResponsavel', S.respDia, ilha, l.nome); l.salva = ilha; S.respAba.mapa[ilha] = l.nome; }
+      catch (e) { aviso('Não salvou a ilha ' + ilha + ': ' + (e && e.message ? e.message : e), true); break; }
+    }
+    renderResponsaveisAba();
+  }
+
+  /* ---------- abas do painel (menu no cabeçalho) ---------- */
+  function trocarAba(aba) {
+    S.aba = aba === 'responsaveis' ? 'responsaveis' : 'faltantes';
+    document.querySelectorAll('#menu a').forEach((a) => a.setAttribute('aria-current', a.dataset.aba === S.aba ? 'page' : 'false'));
+    $('#controlesFaltantes').hidden = S.aba !== 'faltantes';
+    if (S.aba !== 'faltantes') $('#escolhaDias').hidden = true; else desenharModo();
+    if (S.aba === 'responsaveis' && S.dia && !S.respDia) S.respDia = dmyD(new Date());
+    $('#conteudo').innerHTML = '';
+    atualizar(false);
   }
 
   /* ---------- tela ---------- */
   const COR = (r) => /erro/i.test(r) ? 'var(--bad)' : /perdid|avaria/i.test(r) ? 'var(--warn)' : /ok\b|deslocado/i.test(r) ? 'var(--ok)' : /em aberto/i.test(r) ? 'var(--open)' : 'var(--man)';
 
   function render() {
+    if (S.aba === 'responsaveis') { renderResponsaveisAba(); return; }
     const m = $('#conteudo');
     if (S.modo !== 'dia') { renderPeriodo(); return; }
     if (!S.dia) { m.innerHTML = ''; return; }
@@ -559,10 +642,7 @@
     m.querySelectorAll('[data-campo]').forEach((el) => {
       el.onchange = () => { const p = porId.get(el.dataset.id); salvar(p, el.dataset.campo, el.value.trim(), document.getElementById('st-' + el.dataset.campo + '-' + p.id)); };
     });
-    m.querySelectorAll('[data-ilha]').forEach((el) => { el.onchange = () => salvarResp(el.dataset.ilha, el.value.trim(), document.getElementById('st-resp-' + el.dataset.ilha)); });
-    const ca = $('#copiarAnt'); if (ca) ca.onclick = copiarAnterior;
-    const bn = $('#btnNovaIlha'); if (bn) bn.onclick = acrescentarIlha;
-    const ni = $('#novaIlha'); if (ni) ni.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); acrescentarIlha(); } };
+    const ir = $('#irResp'); if (ir) ir.onclick = (e) => { e.preventDefault(); S.respDia = S.dia; trocarAba('responsaveis'); };
     if (aid) { const el = document.getElementById(aid); if (el) { if (aval != null && el.value !== aval) el.value = aval; el.focus(); try { if (apos != null) el.setSelectionRange(apos, apos); } catch (e) {} } }
   }
 
@@ -612,7 +692,7 @@
   function aviso(t, erro) { const el = $('#msg'); el.textContent = t || ''; el.hidden = !t; el.classList.toggle('err', !!erro); }
   function status(estado) {
     $('#dot').className = 'dot' + (estado === 'ok' ? '' : estado === 'load' ? ' load' : ' off');
-    $('#atualizado').textContent = estado === 'load' ? (S.forcando ? 'Relendo a planilha… pode levar uns 10 s' : 'Atualizando…') : S.geradoEm ? 'Dados preparados às ' + hm(S.geradoEm) + ' · conferido às ' + hm(S.ultima) : 'Sem dados';
+    $('#atualizado').textContent = estado === 'load' ? (S.forcando ? 'Relendo a planilha… pode levar uns 10 s' : 'Atualizando…') : S.geradoEm ? 'Dados preparados às ' + hm(S.geradoEm) + ' · conferido às ' + hm(S.ultima) : S.ultima ? 'Atualizado às ' + hm(S.ultima) : 'Sem dados';
   }
   function desenharDias() {
     $('#selDia').innerHTML = S.dias.map((d) => '<option value="' + esc(d.dia) + '"' + (d.dia === S.dia ? ' selected' : '') + '>' + esc(d.dia) + ' · ' + fmt(d.n) + ' faltantes</option>').join('');
@@ -622,14 +702,20 @@
   $('#rodape').textContent = 'Dados ao vivo da planilha "Conteneirização de Pacotes - Base SSP53". Atualiza sozinho a cada ' + CONFIG.ATUALIZAR_MIN + ' min. Regras: ' + (window.REGRAS ? window.REGRAS.versao : '—') + '.';
   $('#btnAtualizar').onclick = () => atualizar(true);
   $('#selDia').onchange = (e) => { salvarVistos(); S.dia = e.target.value; S.vistosAntes = null; S.filtro = null; S.pacotes = []; try { history.replaceState(null, '', '#' + encodeURIComponent(S.dia)); } catch (x) {} atualizar(false); };
+  document.querySelectorAll('#menu a').forEach((a) => { a.onclick = (e) => { e.preventDefault(); if (a.dataset.aba !== S.aba) trocarAba(a.dataset.aba); }; });
   $('#selModo').onchange = (e) => { S.modo = e.target.value; S.filtro = null; if (S.modo === 'escolher' && !S.escolhidos.length && S.dia) S.escolhidos = [S.dia]; desenharModo(); atualizar(false); };
   $('#selSemana').onchange = (e) => { S.semana = e.target.value; atualizar(false); };
   $('#selMes').onchange = (e) => { S.mes = e.target.value; atualizar(false); };
   $('#btnVisto').onclick = () => { salvarVistos(); S.vistosAntes = lerVistos(); render(); };
   addEventListener('pagehide', salvarVistos);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) salvarVistos(); else atualizar(false); });
-  setInterval(() => { if (!document.hidden) atualizar(false); }, CONFIG.ATUALIZAR_MIN * 60 * 1000);
-  atualizar(false);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) salvarVistos(); else if (S.aba === 'faltantes') atualizar(false); });
+  setInterval(() => { if (!document.hidden && S.aba === 'faltantes') atualizar(false); }, CONFIG.ATUALIZAR_MIN * 60 * 1000);
+  // link com ?aba=responsaveis (ou #responsaveis) abre direto na aba Responsáveis — base para a permissão do assistente
+  const iniciar = (aba) => { if (aba === 'responsaveis') trocarAba('responsaveis'); else atualizar(false); };
+  try {
+    if (window.google && google.script && google.script.url) google.script.url.getLocation((loc) => iniciar((loc && loc.parameter && loc.parameter.aba) || (loc && loc.hash) || ''));
+    else iniciar(location.hash.slice(1));
+  } catch (e) { iniciar(''); }
 })();
 </script>
 </body>

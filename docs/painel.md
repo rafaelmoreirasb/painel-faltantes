@@ -31,10 +31,14 @@ Código: [`apps-script/painel/`](../apps-script/painel/) — 3 arquivos: `Painel
   por dia, **erros de conteinerização por responsável e por ilha**, resultados e a lista de pacotes. Clicar num dia abre o
   detalhe com a linha do tempo. Os dados vêm da aba **Resumo diário**, que o gatilho preenche sozinho (1 linha por faltante
   por dia) — por isso o mês continua disponível mesmo depois que a planilha arquiva os dados com mais de 15 dias.
-- **Responsáveis por ilha** (no dia): uma caixa por ilha (letra da rota: A1, A2… = ilha **A**) com uma **lista** dos nomes da
-  aba **Colaboradores** (coluna "Nome"; só o nome é lido), o botão "Copiar do dia anterior" e o campo **Acrescentar ilha**
-  (digitar a letra + escolher o nome) para ilhas que não apareceram nas rotas do dia. Fica na aba **Responsáveis**. Pacote com
-  **erro de conteinerização** mostra "cobrar: Nome"; o cartão "Erros de conteinerização do dia por responsável" resume.
+- **Duas abas no topo: Faltantes · Responsáveis por ilha.** A aba **Responsáveis por ilha** (link direto:
+  `…/exec?aba=responsaveis`, pensado para o assistente que só vai preencher isso) tem o campo **Dia**, o botão
+  "Copiar do dia anterior" e **6 linhas em branco**: em cada uma digita-se a **letra da ilha** (letra da rota: A1, A2… =
+  ilha **A**) e escolhe-se o nome da lista da aba **Colaboradores** (coluna "Nome"; só o nome é lido). Salva sozinho ao
+  sair do campo, na aba **Responsáveis**. "+ Acrescentar ilha" cria mais linhas só naquele dia (no dia seguinte volta a
+  6). Trocar a letra de uma linha já salva apaga a ilha antiga; letra repetida ou com número é recusada.
+  Na aba Faltantes, pacote com **erro de conteinerização** mostra "cobrar: Nome", e o cartão "Erros de conteinerização do
+  dia por responsável" resume (com o link "Preencher responsáveis por ilha ›").
   (Vale para todos os pacotes até existir a aba que diz o que é volumoso.)
 - **Bipes novos** (amarelo): o que apareceu desde a última vez que você abriu o painel neste navegador.
 - **Rápido**: um gatilho (`painelPreparar`, a cada 5 min) deixa prontos os dias com faltantes dos últimos 4 dias. O painel

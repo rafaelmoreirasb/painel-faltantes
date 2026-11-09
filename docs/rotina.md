@@ -12,8 +12,9 @@ Quase tudo roda sozinho. A parte do Rafael: **exportar, olhar o painel e decidir
 4. **Abrir o painel** (conta @dhl.com; no computador pessoal, janela anônima + login DHL):
    https://script.google.com/a/macros/dhl.com/s/AKfycby_asEzOPexlsqS279IgK4b-SI8D6MHjAHx5eAeg5s5lBxOz8zQ-cqyy7tnNRNj2Vpq/exec
    Escolher o dia. Conferir no topo "Dados preparados às HH:MM" (no máximo ~10 min atrás).
-5. **Preencher os responsáveis do dia** (1–2 min): no cartão **Responsáveis por ilha**, clicar em "Copiar do dia
-   anterior" e trocar só quem mudou.
+5. **Preencher os responsáveis do dia** (1–2 min): no menu do topo, aba **Responsáveis por ilha** (ou o link
+   `…/exec?aba=responsaveis`). Clicar em "Copiar do dia anterior" e trocar só quem mudou; ilha que faltar → digitar a
+   letra numa linha em branco (ou "+ Acrescentar ilha") e escolher o nome.
 6. **Revisar, nesta ordem** (10–20 min):
    1. **Para decidir** → "Mostrar só os conflitos" → *Manter a minha* ou *Usar a regra*.
    2. **Regra em aberto** (barra cinza) → ler a linha do tempo → preencher *Sua classificação* e *Raciocínio* (salva sozinho).
