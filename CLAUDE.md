@@ -15,6 +15,7 @@ apps-script/painel/  O PAINEL: Web App do Apps Script (Painel.gs, PainelTela.htm
 painel/            só um aviso no GitHub Pages apontando para o Web App
 regras/REGRAS.md   regras de classificação — fonte da verdade
 docs/decisoes.md   registro das decisões
+docs/rotina.md     rotina diária do Rafael (exportar → Drive → painel → revisar)
 ```
 Conversas no Claude Code: **uma por tópico**, título "Faltantes · <tópico>" e etiqueta `faltantes`
 (tópicos: Organização, Apps Script, Importador Excel, Regras, Painel). Antes de encerrar um tópico,
