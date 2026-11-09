@@ -82,6 +82,7 @@ Código: [`apps-script/painel/`](../apps-script/painel/) — 3 arquivos: `Painel
 | O que aparece | O que fazer |
 |---|---|
 | "Não foi possível atualizar: Aba … não existe" | O nome da aba mudou na planilha. Me avise o nome novo. |
+| Dia novo não aparece no seletor | **Atualizar agora**. A lista de dias fica guardada só 5 min e o importador limpa ao importar. Se não aparecer, rodar **painelPreparar** e ver **Executions**. Quando entra dia novo, a aba **Log importação** ganha uma linha "(painel) … dia(s) novo(s)" |
 | "Dados preparados às" com horário velho (mais de 10 min) | O gatilho parou: em **Triggers** confira `painelPreparar`; se não estiver, rode `painelCriarGatilho`. |
 | Painel lento ao abrir um dia antigo | Normal na 1ª vez (~10 s); depois fica guardado 6 h. |
 | "Você precisa de permissão" ao abrir o link | A pessoa não está logada com conta DHL, ou o acesso não está como "Anyone within DHL Group". |

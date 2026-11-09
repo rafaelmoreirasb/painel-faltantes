@@ -100,6 +100,7 @@ function importarRelatorios() {
   if (!lock.tryLock(30000)) return; // evita duas execuções ao mesmo tempo
   const inicio = Date.now();
   const erros = [];
+  let importou = false;
   try {
     const ss = abrirPlanilha();
     const entrada = pasta(CONFIG.PASTA_ENTRADA);
@@ -123,6 +124,7 @@ function importarRelatorios() {
         const r = importarTabela(ss, rel, tabela, new Date());
         registrar(ss, nome, rel.nome, r.lidas, r.novas, r.atualizadas, r.iguais, 'OK');
         moverPara(arq, entrada, 'Processados/' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd'));
+        importou = true;
         console.log(nome + ' → ' + rel.aba + ': ' + r.novas + ' novas, ' + r.atualizadas + ' atualizadas, ' + r.iguais + ' já existiam');
       } catch (e) {
         erros.push(nome + ': ' + e.message);
@@ -133,6 +135,8 @@ function importarRelatorios() {
     erros.push(e.message);
   } finally {
     lock.releaseLock();
+    // dado novo: apaga a lista de dias guardada pelo painel (mesmo projeto = mesmo cache), para o dia novo aparecer já
+    if (importou) { try { CacheService.getScriptCache().remove('dias:n'); } catch (e) {} }
     if (erros.length) avisarErro('Importação de relatórios', erros);
   }
 }

@@ -227,7 +227,7 @@
     if (S.carregando) return;
     S.carregando = true; S.forcando = !!forcar; status('load'); $('#btnAtualizar').disabled = true;
     try {
-      S.dias = await chamar('painelListarDias');
+      S.dias = await chamar('painelListarDias', !!forcar);
       if (!S.dias.length) { aviso('Ainda não há faltantes na aba Aduana.'); S.dia = null; S.pacotes = []; render(); return; }
       if (!S.dia || !S.dias.some((d) => d.dia === S.dia)) {
         const h = decodeURIComponent(location.hash.slice(1));

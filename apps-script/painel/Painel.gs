@@ -14,7 +14,8 @@ const PainelFaltantes = (() => {
   const CFG = {
     JANELA_HORAS: 36,  // linha do tempo: 1º bipe do pacote no Histórico (sorting) no dia + 36 h
     DIAS_LEITURA: 3,   // lê o dia analisado e os 2 seguintes
-    CACHE_SEG: 21600,  // resultado guardado por 6 h; o gatilho de 5 min (painelPreparar) renova os dias recentes
+    CACHE_SEG: 21600,
+    DIAS_CACHE_SEG: 300, // a lista de dias com faltantes fica guardada só 5 min  // resultado guardado por 6 h; o gatilho de 5 min (painelPreparar) renova os dias recentes
     DIAS_PREPARAR: 4,  // o gatilho deixa prontos os dias com faltantes dos últimos 4 dias
     PREPARAR_MIN: 5,   // de quantos em quantos minutos o gatilho prepara os dados
     // A tela e as regras vêm do GitHub (mudou lá, o painel muda sozinho). Se o GitHub falhar, usa as cópias do projeto.
@@ -131,7 +132,7 @@ const PainelFaltantes = (() => {
       return JSON.parse(s);
     } catch (e) { return null; }
   }
-  function cacheGravar(chave, obj) {
+  function cacheGravar(chave, obj, seg) {
     try {
       const s = JSON.stringify(obj);
       const tam = 90000, itens = {};
@@ -139,7 +140,7 @@ const PainelFaltantes = (() => {
       if (n > 50) return; // grande demais: não guarda
       for (let i = 0; i < n; i++) itens[chave + ':' + i] = s.slice(i * tam, (i + 1) * tam);
       itens[chave + ':n'] = String(n);
-      CacheService.getScriptCache().putAll(itens, CFG.CACHE_SEG);
+      CacheService.getScriptCache().putAll(itens, seg || CFG.CACHE_SEG);
     } catch (e) { /* sem cache, tudo bem */ }
   }
 
@@ -150,7 +151,7 @@ const PainelFaltantes = (() => {
     const cont = {};
     for (const o of linhas) if (norm(o['Estado']) === 'faltante') { const d = diaDe(o['Data auditoria']); if (d) cont[d] = (cont[d] || 0) + 1; }
     const dias = Object.keys(cont).map((d) => ({ dia: d, n: cont[d], t: lerDataHora(d).getTime() })).sort((a, b) => b.t - a.t);
-    cacheGravar('dias', dias);
+    cacheGravar('dias', dias, CFG.DIAS_CACHE_SEG); // lista de dias: só 5 min (dia novo aparece logo)
     return dias;
   }
 
@@ -301,21 +302,38 @@ const PainelFaltantes = (() => {
   }
 
   /** Gatilho de 5 min: deixa prontos (no cache) a lista de dias e os dias recentes. Assim o painel abre na hora. */
+  /**
+   * Gatilho de 5 min: atualiza a lista de dias, recalcula os dias recentes (janela de 36 h ainda aberta) e os dias que
+   * ainda não estão no Resumo diário (dia novo importado), e grava o Resumo de uma vez só.
+   * Para antes de ~4 min (limite do Google é 6 min): o que faltar vai na próxima rodada.
+   */
   function preparar() {
     const inicio = Date.now();
     const dias = listarDias(true);
     const limite = Date.now() - CFG.DIAS_PREPARAR * 86400000;
-    const feitos = [];
-    for (const d of dias) {
-      if (d.t < limite) continue;
-      if (Date.now() - inicio > 4.5 * 60 * 1000) break; // não passa do limite de 6 min do Google
-      const dd = dadosDoDia(d.dia, true);
-      try { gravarResumoDia(d.dia, dd); } catch (e) { console.warn('Resumo diário de ' + d.dia + ': ' + e.message); }
-      feitos.push(d.dia);
+    let ja = {};
+    try { ja = diasNoResumo(); } catch (e) {}
+    const resumo = {}, feitos = [], novos = [], erros = [];
+    // primeiro os dias novos (sem resumo), depois os recentes
+    const fila = dias.filter((d) => !ja[d.dia]).concat(dias.filter((d) => ja[d.dia] && d.t >= limite));
+    for (const d of fila) {
+      if (Date.now() - inicio > 4 * 60 * 1000) break;
+      let dd;
+      try { dd = dadosDoDia(d.dia, true); feitos.push(d.dia); } catch (e) { erros.push(d.dia + ': ' + e.message); continue; }
+      // o resumo depende das regras; se elas falharem, os dados do dia já ficaram prontos mesmo assim
+      try { resumo[d.dia] = linhasResumo(d.dia, dd); if (!ja[d.dia]) novos.push(d.dia); } catch (e) { erros.push('Resumo ' + d.dia + ': ' + e.message); }
     }
-    // dias que ainda estão na planilha mas não têm resumo (ex.: logo depois de instalar)
-    try { if (Date.now() - inicio < 3 * 60 * 1000) preencherResumo(true); } catch (e) { console.warn('Resumo: ' + e.message); }
-    return { dias: feitos, segundos: Math.round((Date.now() - inicio) / 100) / 10 };
+    try { gravarResumoDias(resumo); } catch (e) { erros.push('Resumo diário: ' + e.message); }
+    const seg = Math.round((Date.now() - inicio) / 100) / 10;
+    // registra no "Log importação" só quando entra dia novo ou dá erro (não enche o log a cada 5 min)
+    if (novos.length || erros.length) logPainel(erros.length ? 'ERRO: ' + erros.join(' | ') : 'OK: dia(s) novo(s) no painel: ' + novos.join(', '), feitos.length, seg);
+    return { dias: feitos, novos, erros, segundos: seg };
+  }
+  function logPainel(texto, n, seg) {
+    try {
+      const aba = planilha().getSheetByName('Log importação');
+      if (aba) aba.appendRow([agoraTxt(), '(painel)', 'Preparação do painel', n, '', '', '', texto + ' · ' + seg + ' s']);
+    } catch (e) {}
   }
 
   /** Texto de um arquivo da tela: do GitHub (guardado 5 min) ou, se falhar, a cópia do projeto. */
@@ -391,16 +409,24 @@ const PainelFaltantes = (() => {
   }
 
   /** Regrava as linhas de um dia na aba Resumo diário (sem duplicar). */
-  function gravarResumoDia(dia, dados) {
-    dados = dados || dadosDoDia(dia, false);
+  function linhasResumo(dia, dados) {
     const res = classificarDia(dados);
     const quando = agoraTxt();
-    const novas = dados.pacotes.map((p, i) => [dia, String(p.id), p.rota || '', ilhaDe(p.rota), p.rep || '', res[i].resultado || '', res[i].codigo || '', p.temSorting ? 'Sim' : 'Não', quando]);
+    return dados.pacotes.map((p, i) => [dia, String(p.id), p.rota || '', ilhaDe(p.rota), p.rep || '', res[i].resultado || '', res[i].codigo || '', p.temSorting ? 'Sim' : 'Não', quando]);
+  }
+  /** Regrava vários dias de uma vez na aba Resumo diário (uma única escrita; sem duplicar). mapa = { dia: linhas } */
+  function gravarResumoDias(mapa) {
+    const dias = Object.keys(mapa);
+    if (!dias.length) return 0;
     const aba = abaCom(CFG.ABA_RESUMO, CAB_RESUMO);
-    const outras = lerTudo(aba, CAB_RESUMO.length).filter((r) => diaDe(r[0]) !== dia && String(r[1]).trim());
+    const outras = lerTudo(aba, CAB_RESUMO.length).filter((r) => !(diaDe(r[0]) in mapa) && String(r[1]).trim());
+    const novas = [].concat(...dias.map((d) => mapa[d]));
     const todas = outras.concat(novas).sort((a, b) => lerDataHora(a[0]) - lerDataHora(b[0]) || String(a[2]).localeCompare(String(b[2])));
     reescrever(aba, todas, CAB_RESUMO.length);
     return novas.length;
+  }
+  function gravarResumoDia(dia, dados) {
+    return gravarResumoDias({ [dia]: linhasResumo(dia, dados || dadosDoDia(dia, false)) });
   }
   function diasNoResumo() {
     const aba = planilha().getSheetByName(CFG.ABA_RESUMO);
@@ -533,7 +559,7 @@ function painelPreparar() {
   const r = PainelFaltantes.preparar();
   console.log('Preparados: ' + (r.dias.join(', ') || 'nenhum dia recente') + ' em ' + r.segundos + ' s');
 }
-function painelListarDias() { return PainelFaltantes.listarDias(); }
+function painelListarDias(forcar) { return PainelFaltantes.listarDias(!!forcar); }
 function painelDadosDoDia(dia, forcar) {
   const d = PainelFaltantes.dadosDoDia(dia, !!forcar);
   return JSON.stringify({ servidor: 3, dados: d, manual: PainelFaltantes.lerManual(), regras: PainelFaltantes.lerRegras(), url: PainelFaltantes.planilha().getUrl() }); // servidor 3 = Regra conferida + resumo/semana/mês + responsáveis

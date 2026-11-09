@@ -36,6 +36,7 @@ Quase tudo roda sozinho. A parte do Rafael: **exportar, olhar o painel e decidir
 |---|---|
 | Arquivo parado em "Faltantes – Entrada" há mais de 30 min | Apps Script › **Triggers**: tem `importarRelatorios`? Se não, rodar `criarGatilhoRelatorios` |
 | Arquivo foi para "Não reconhecidos" | O formato do relatório mudou → mandar o arquivo ao Claude |
+| Subi arquivos e o dia novo não aparece no seletor | Clicar em **Atualizar agora** (relê a lista de dias). Se continuar: Apps Script › rodar **painelPreparar** e olhar **Executions** |
 | "Dados preparados às" com horário velho | **Triggers**: tem `painelPreparar`? Se não, rodar `painelCriarGatilho` |
 | Painel não abre | Conferir login com a conta @dhl.com |
 | Linha do tempo estranha | **Atualizar agora**; se continuar, mandar shipment + dia ao Claude |
