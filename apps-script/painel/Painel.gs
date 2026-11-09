@@ -237,6 +237,7 @@ const PainelFaltantes = (() => {
     ['2', 'R02', 'Sim', 'Bipado no Histórico e bipado no Direcionamento Manual (qualquer resultado na auditoria de carrinho, torre ou aduana)?', '(coluna STATUS do Direcionamento Manual)', 'O resultado mostrado é o STATUS do Direcionamento', 'Histórico, Direcionamento Manual'],
     ['3', 'R03', 'Sim', 'Bipado no Histórico, faltante na Aduana e na Torre, e logo depois Verificado no Inventário?', 'Erro de Conteinerização', '', 'Histórico, Aduana, Torre Aduana, Inventário'],
     ['4', 'R04', 'Sim', 'Bipado no Histórico, faltante na Aduana e na Torre, e depois Problem Solving: pacote avariado / não reparado?', 'Pacote Avariado', 'Com ou sem auditoria de carrinho', 'Histórico, Aduana, Torre Aduana, Problem Solving'],
+    ['5', 'R05', 'Sim', 'Bipado no Histórico, Pendente/Faltante ou não bipado na auditoria de carrinho, Faltante na Aduana na rota de origem e A MAIS na Aduana em outra rota?', 'Erro de Conteinerização', '', 'Histórico, Auditoria de Carrinho, Aduana'],
   ];
 
   /** Cria a aba Regras com o cabeçalho e as regras iniciais. Se a aba já tiver regras, não mexe. */

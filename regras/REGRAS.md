@@ -47,6 +47,10 @@ e olham só a janela de 36 h. "Faltante na aduana" é verdade para todo pacote d
 | 2 | R02 | Bipado no Histórico e bipado no **Direcionamento Manual**? Vale com qualquer resultado na auditoria de carrinho (faltante, pendente ou correto) e mesmo se deu faltante na torre e na aduana. | o conteúdo da **coluna 3 (STATUS)** do Direcionamento Manual (ex.: SEM ROTAS) | Histórico, Direcionamento Manual |
 | 3 | R03 | Bipado no Histórico, faltante na Aduana e na Torre, e **logo depois Verificado no Inventário**? | Erro de Conteinerização | Histórico, Aduana, Torre Aduana, Inventário |
 | 4 | R04 | Bipado no Histórico, faltante na Aduana e na Torre (bipado ou não na auditoria de carrinho) e depois **Problem Solving: Problema = pacote avariado e Resolução = não reparado**? | Pacote Avariado | Histórico, Aduana, Torre Aduana, Problem Solving |
+| 5 | R05 | Bipado no Histórico, depois **Pendente, Faltante ou não bipado na auditoria de carrinho**, **Faltante na Aduana na rota de origem** e **A mais na Aduana em outra rota**? (09/11) | Erro de Conteinerização | Histórico, Auditoria de Carrinho, Aduana |
+
+Regra nova que entra no código e ainda não está na aba `Regras` passa a valer sozinha, **no fim da lista**. Para mudar a
+ordem ou desligar, ponha/edite a linha dela na aba.
 
 **Como o painel verifica (detalhe técnico):**
 - *Torre*: coluna `Estado aduana` ("A mais" / "Faltante"); rota = `Gaiola (rota otim,)`, comparada com `ID da rota` da Aduana
@@ -57,6 +61,9 @@ e olham só a janela de 36 h. "Faltante na aduana" é verdade para todo pacote d
 - *R03*: tem "Faltante" na Torre e o **primeiro** registro do Inventário depois disso tem `Situação` = Verificados.
 - *R04*: tem "Faltante" na Torre e algum registro do Problem Solving com `Problema` contendo "avaria" e `Resolução`
   contendo "não reparado" (sem diferenciar maiúscula/acento).
+- *R05*: na Auditoria de Carrinho, nenhum registro na janela **ou** só "Pendente"/"Faltante" (se tiver "Correto" ou
+  "A mais", não vale); e na aba Aduana algum registro "A mais" com `ID da rota` diferente da rota em que faltou.
+  É o mesmo caso da R01 visto pela Aduana em vez da Torre; como a R01 vem antes, quando os dois batem aparece R01.
 
 ---
 

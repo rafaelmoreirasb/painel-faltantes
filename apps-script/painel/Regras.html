@@ -86,6 +86,19 @@
         norm(x.dados['Resolução']).includes('nao reparado'));
       return e ? 'Problem Solving: ' + e.dados['Problema'] + ' · ' + e.dados['Resolução'] : false;
     },
+    // R05 — carrinho Pendente/Faltante/não auditado, Faltante na Aduana na rota de origem e A MAIS na Aduana em outra rota
+    //       → Erro de Conteinerização (a R01 é o mesmo caso visto pela Torre)
+    'R05': (p) => {
+      if (!p.temSorting) return false;
+      const car = A.eventosDe(p, 'carrinho');
+      if (car.some((e) => !['pendente', 'faltante'].includes(norm(e.dados['Estado'])))) return false; // Correto / A mais no carrinho
+      const rf = norm(A.rotaFaltante(p));
+      const e = A.eventosDe(p, 'aduana').find((x) => norm(x.dados['Estado']) === 'a mais' &&
+        String(x.dados['ID da rota'] || '').trim() && norm(x.dados['ID da rota']) !== rf);
+      if (!e) return false;
+      const carTxt = car.length ? [...new Set(car.map((x) => x.dados['Estado']))].join('/') : 'não auditado';
+      return 'A mais na Aduana na rota ' + e.dados['ID da rota'] + ' (faltou na ' + (A.rotaFaltante(p) || '?') + ') · carrinho: ' + carTxt;
+    },
   };
 
   /* Regras iniciais, usadas enquanto a aba "Regras" não existe ou está vazia (mesmos campos da aba).
@@ -95,11 +108,19 @@
     { ordem: 2, codigo: 'R02', ligada: true, resultado: '(coluna STATUS do Direcionamento Manual)', pergunta: 'Bipado no Histórico e bipado no Direcionamento Manual (qualquer resultado na auditoria de carrinho, torre ou aduana)?', observacao: 'O resultado mostrado é o STATUS do Direcionamento', abas: 'Histórico, Direcionamento Manual' },
     { ordem: 3, codigo: 'R03', ligada: true, resultado: 'Erro de Conteinerização', pergunta: 'Bipado no Histórico, faltante na Aduana e na Torre, e logo depois Verificado no Inventário?', observacao: '', abas: 'Histórico, Aduana, Torre Aduana, Inventário' },
     { ordem: 4, codigo: 'R04', ligada: true, resultado: 'Pacote Avariado', pergunta: 'Bipado no Histórico, faltante na Aduana e na Torre, e depois Problem Solving: pacote avariado / não reparado?', observacao: 'Com ou sem auditoria de carrinho', abas: 'Histórico, Aduana, Torre Aduana, Problem Solving' },
+    { ordem: 5, codigo: 'R05', ligada: true, resultado: 'Erro de Conteinerização', pergunta: 'Bipado no Histórico, Pendente/Faltante ou não bipado na auditoria de carrinho, Faltante na Aduana na rota de origem e A MAIS na Aduana em outra rota?', observacao: '', abas: 'Histórico, Auditoria de Carrinho, Aduana' },
   ];
 
-  /** Junta a aba Regras com a LOGICA: cada linha ganha temLogica. */
+  /** Junta a aba Regras com a LOGICA: cada linha ganha temLogica.
+      Regra que existe no código mas ainda não está na aba entra no fim (marcada novaForaDaAba) — para regra nova
+      funcionar sem ninguém mexer na planilha. Para desligar, ponha a regra na aba com Ligada = Não. */
   function montar(regrasDaAba) {
-    const lista = Array.isArray(regrasDaAba) && regrasDaAba.length ? regrasDaAba : PADRAO;
+    const daAba = Array.isArray(regrasDaAba) && regrasDaAba.length;
+    const lista = daAba ? regrasDaAba.slice() : PADRAO;
+    if (daAba) {
+      const tem = new Set(lista.map((r) => String(r.codigo || '').toUpperCase()));
+      PADRAO.filter((r) => !tem.has(r.codigo)).forEach((r) => lista.push(Object.assign({}, r, { novaForaDaAba: true })));
+    }
     return lista.map((r) => Object.assign({}, r, { codigo: String(r.codigo || '').toUpperCase(), temLogica: typeof LOGICA[String(r.codigo || '').toUpperCase()] === 'function' }));
   }
 
