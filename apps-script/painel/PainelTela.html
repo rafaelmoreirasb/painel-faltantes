@@ -24,6 +24,7 @@
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
+  [hidden] { display: none !important; }
   body { min-height: 100vh; background: var(--bg); color: var(--fg); font-family: var(--fonte); font-size: 15px; line-height: 1.4; }
   input, select, textarea, button { font-family: inherit; }
   a { color: var(--vermelho); font-weight: 600; } a:hover { color: var(--vermelho-escuro); }
@@ -128,11 +129,22 @@
   .aviso-conflito button { height: 32px; margin-left: 8px; font-size: 13px; }
   td.res { max-width: 20rem !important; }
   td.res:has(.conflito) { min-width: 17rem; }
+  .duas { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 20px; }
+  .leg { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; margin: 0 2px; }
+  .escolha .dias { display: flex; flex-wrap: wrap; gap: 6px; }
+  .dia-cb { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px; border: 1px solid var(--cinza-campo); border-radius: 999px; background: var(--branco); font-family: var(--f-mono); font-size: 13px; cursor: pointer; }
+  .dia-cb input { height: auto; accent-color: var(--vermelho); }
+  .ilhas { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+  .ilha { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+  .ilha input { width: 100%; }
+  .track .fill + .fill { border-left: 1px solid var(--branco); }
+  .bars .row .t .sub { white-space: normal; }
   table.tr tr.off td { opacity: .55; } table.tr td.n { text-align: right; font-family: var(--f-mono); font-weight: 700; }
   @media (max-width: 700px) {
     .row { grid-template-columns: minmax(0, 9rem) 1fr 2.6rem; } .tile .val { font-size: 26px; }
     .marca-logo { height: 32px; width: 113px; } .card { padding: 16px; } select { min-width: 0; width: 100%; }
     .controls label { flex: 1 1 100%; }
+    .duas { grid-template-columns: 1fr; }
     .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tile { padding: 12px 14px; }
   }
 </style>
@@ -157,16 +169,23 @@
 <div class="wrap">
 
   <div class="controls">
-    <label>Dia analisado<select id="selDia" aria-label="Dia analisado"></select></label>
+    <label>Período<select id="selModo" aria-label="Período" disabled>
+      <option value="dia">Um dia</option><option value="semana">Semana</option><option value="mes">Mês</option><option value="escolher">Escolher dias</option>
+    </select></label>
+    <label id="lblDia">Dia analisado<select id="selDia" aria-label="Dia analisado"></select></label>
+    <label id="lblSemana" hidden>Semana<select id="selSemana" aria-label="Semana"></select></label>
+    <label id="lblMes" hidden>Mês<select id="selMes" aria-label="Mês"></select></label>
     <button id="btnVisto" type="button" title="Os bipes que você ainda não tinha visto ficam amarelos. Este botão marca todos como vistos.">Marcar bipes como vistos</button>
     <a id="lnkPlanilha" target="_blank" rel="noopener">Abrir a planilha ↗</a>
   </div>
 
+  <div id="escolhaDias" class="card escolha" hidden></div>
   <p id="msg" class="msg" role="status" hidden></p>
   <main id="conteudo" style="display:flex;flex-direction:column;gap:18px"></main>
   <footer id="rodape"></footer>
 </div>
 <datalist id="lista-res"></datalist>
+<datalist id="lista-colab"></datalist>
 
 <?!= painelIncluir('Regras') ?>
 <script>
@@ -187,7 +206,8 @@
   const chamar = (fn, ...args) => new Promise((ok, erro) => google.script.run.withSuccessHandler(ok).withFailureHandler(erro)[fn](...args));
 
   /* ---------- estado ---------- */
-  const S = { dias: [], dia: null, pacotes: [], manual: {}, filtro: null, busca: '', vistosAntes: null, carregando: false, ultima: null, avisos: [], url: '', segundos: 0, regras: [], abaRegras: true, servidor: 1, soConflitos: false };
+  const S = { dias: [], dia: null, pacotes: [], manual: {}, filtro: null, busca: '', vistosAntes: null, carregando: false, ultima: null, avisos: [], url: '', segundos: 0, regras: [], abaRegras: true, servidor: 1, soConflitos: false,
+    modo: 'dia', semana: '', mes: '', escolhidos: [], periodo: null, resp: null, buscaPer: '', diasResumo: [] };
   const manualDe = (p) => S.manual[p.dia + '|' + p.id] || S.manual['*|' + p.id] || null;
   const resultado = (p) => { const m = manualDe(p); return m && m.classificacao ? m.classificacao : p.regra.resultado; };
 
@@ -213,11 +233,15 @@
         S.dia = (S.dias.find((d) => d.dia === h) || S.dias[0]).dia;
       }
       desenharDias();
+      if (S.modo !== 'dia') { await carregarPeriodo(); S.ultima = new Date(); aviso(''); render(); status('ok'); return; }
       const r = JSON.parse(await chamar('painelDadosDoDia', S.dia, !!forcar));
       S.abaRegras = Array.isArray(r.regras); S.regras = window.REGRAS.montar(r.regras);
       S.pacotes = prepararPacotes(r.dados, S.regras); S.manual = r.manual || {}; S.servidor = r.servidor || 1; S.avisos = r.dados.avisos || []; S.url = r.url; S.segundos = r.dados.segundos;
       S.geradoEm = new Date(r.dados.geradoEm);
       $('#lnkPlanilha').href = S.url;
+      S.resp = null;
+      if (S.servidor >= 3) { try { S.resp = JSON.parse(await chamar('painelResponsaveis', S.dia)); } catch (e) { console.warn(e); } }
+      desenharModo();
       if (S.vistosAntes === null) { S.vistosAntes = lerVistos(); if (!S.vistosAntes) salvarVistos(); }
       S.ultima = new Date();
       aviso('');
@@ -295,11 +319,158 @@
     }
   }
 
+  /* ---------- período (semana / mês / escolher dias) ---------- */
+  const ehErroCont = (r) => /conteineriza/i.test(String(r || ''));
+  const dataDe = (txt) => { const m = String(txt).match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? new Date(+m[3], +m[2] - 1, +m[1]) : null; };
+  const dmyD = (d) => pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear();
+  const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  function segundaDe(d) { const x = new Date(d); const w = (x.getDay() + 6) % 7; x.setDate(x.getDate() - w); x.setHours(0, 0, 0, 0); return x; }
+  function opcoesPeriodo() {
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const semanas = []; let s0 = segundaDe(hoje);
+    for (let i = 0; i < 10; i++) { const fim = new Date(s0); fim.setDate(fim.getDate() + 6); semanas.push({ ini: dmyD(s0), fim: dmyD(fim), rot: (i === 0 ? 'Esta semana · ' : '') + dmyD(s0).slice(0, 5) + ' a ' + dmyD(fim).slice(0, 5) }); s0 = new Date(s0); s0.setDate(s0.getDate() - 7); }
+    const meses = [];
+    for (let i = 0; i < 12; i++) { const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1); const fim = new Date(d.getFullYear(), d.getMonth() + 1, 0); meses.push({ ini: dmyD(d), fim: dmyD(fim), rot: MESES[d.getMonth()] + ' de ' + d.getFullYear() + (i === 0 ? ' (até hoje)' : '') }); }
+    return { semanas, meses };
+  }
+  function desenharModo() {
+    const nova = S.servidor >= 3;
+    $('#selModo').disabled = !nova;
+    $('#selModo').title = nova ? '' : 'Atualize o Painel.gs para ver semana, mês e responsáveis';
+    $('#lblDia').hidden = S.modo !== 'dia';
+    $('#lblSemana').hidden = S.modo !== 'semana';
+    $('#lblMes').hidden = S.modo !== 'mes';
+    $('#btnVisto').hidden = S.modo !== 'dia';
+    const o = opcoesPeriodo();
+    if (!S.semana) S.semana = o.semanas[0].ini; if (!S.mes) S.mes = o.meses[0].ini;
+    $('#selSemana').innerHTML = o.semanas.map((w) => '<option value="' + w.ini + '"' + (w.ini === S.semana ? ' selected' : '') + '>' + esc(w.rot) + '</option>').join('');
+    $('#selMes').innerHTML = o.meses.map((m) => '<option value="' + m.ini + '"' + (m.ini === S.mes ? ' selected' : '') + '>' + esc(m.rot) + '</option>').join('');
+    const box = $('#escolhaDias');
+    box.hidden = S.modo !== 'escolher';
+    if (S.modo === 'escolher') {
+      const todos = [...new Set([...S.dias.map((d) => d.dia), ...S.diasResumo])].sort((a, b) => dataDe(b) - dataDe(a));
+      box.innerHTML = '<p class="note"><b>Marque os dias</b> que entram no indicador. <button type="button" class="chip" id="marcarTodos">Marcar todos</button> <button type="button" class="chip" id="desmarcar">Limpar</button></p><div class="dias">' +
+        todos.map((d) => '<label class="dia-cb"><input type="checkbox" value="' + d + '"' + (S.escolhidos.includes(d) ? ' checked' : '') + '> ' + d.slice(0, 5) + '</label>').join('') + '</div>';
+      box.querySelectorAll('input').forEach((cb) => { cb.onchange = () => { S.escolhidos = [...box.querySelectorAll('input:checked')].map((x) => x.value); atualizar(false); }; });
+      $('#marcarTodos').onclick = () => { S.escolhidos = todos.slice(); desenharModo(); atualizar(false); };
+      $('#desmarcar').onclick = () => { S.escolhidos = []; desenharModo(); render(); };
+    }
+  }
+  function intervalo() {
+    const o = opcoesPeriodo();
+    if (S.modo === 'semana') { const w = o.semanas.find((x) => x.ini === S.semana) || o.semanas[0]; return [w.ini, w.fim, w.rot]; }
+    if (S.modo === 'mes') { const m = o.meses.find((x) => x.ini === S.mes) || o.meses[0]; return [m.ini, m.fim, m.rot]; }
+    const ds = S.escolhidos.map(dataDe).filter(Boolean).sort((a, b) => a - b);
+    return ds.length ? [dmyD(ds[0]), dmyD(ds[ds.length - 1]), S.escolhidos.length + ' dias escolhidos'] : null;
+  }
+  async function carregarPeriodo() {
+    const iv = intervalo();
+    if (!iv) { S.periodo = { linhas: [], rot: 'nenhum dia marcado', vazio: true }; return; }
+    const r = JSON.parse(await chamar('painelResumoPeriodo', iv[0], iv[1]));
+    S.diasResumo = Object.keys(r.diasNoResumo || {});
+    let linhas = r.linhas;
+    if (S.modo === 'escolher') linhas = linhas.filter((l) => S.escolhidos.includes(l.dia));
+    S.periodo = { linhas, rot: iv[2], ini: iv[0], fim: iv[1] };
+    S.geradoEm = new Date();
+  }
+  function barrasSimples(lista, max, cor, onde) {
+    return '<div class="bars">' + lista.map((x) => '<button type="button" class="row"' + (x.dia ? ' data-dia="' + x.dia + '"' : '') + '><span class="t">' + esc(x.nome) + (x.sub ? '<span class="sub">' + esc(x.sub) + '</span>' : '') + '</span><span class="track">' +
+      (x.partes || [[x.n, cor]]).map(([v, c]) => '<span class="fill" style="display:inline-block;width:' + (100 * v / Math.max(1, max)) + '%;background:' + c + '"></span>').join('') +
+      '</span><span class="n">' + fmt(x.n) + '</span></button>').join('') + '</div>';
+  }
+  function renderPeriodo() {
+    const m = $('#conteudo');
+    const P = S.periodo || { linhas: [] };
+    const L = P.linhas;
+    const dias = [...new Set(L.map((l) => l.dia))].sort((a, b) => dataDe(a) - dataDe(b));
+    const nErr = L.filter((l) => ehErroCont(l.resultado)).length;
+    const nAb = L.filter((l) => /em aberto/i.test(l.resultado)).length;
+    const nMan = L.filter((l) => l.manual).length;
+    // junta resultados iguais com maiúscula/acento diferentes (ex.: "Erro de Conteinerização" e "Erro de conteinerização")
+    const grupos = new Map(); L.forEach((l) => { const k = norm(l.resultado); const g = grupos.get(k) || [l.resultado, 0]; g[1]++; grupos.set(k, g); });
+    const lista = [...grupos.values()].sort((a, b) => b[1] - a[1]);
+    const maxR = Math.max(1, ...lista.map((x) => x[1]));
+    // evolução por dia
+    const porDia = dias.map((d) => { const ls = L.filter((l) => l.dia === d); const e = ls.filter((l) => ehErroCont(l.resultado)).length; return { dia: d, nome: d.slice(0, 5), n: ls.length, sub: e + ' erro' + (e === 1 ? '' : 's') + ' de conteinerização', partes: [[e, 'var(--vermelho)'], [ls.length - e, 'var(--cinza-apagado)']] }; });
+    const maxD = Math.max(1, ...porDia.map((x) => x.n));
+    // por ilha e por responsável (só erros de conteinerização)
+    const erros = L.filter((l) => ehErroCont(l.resultado));
+    const conta = (fn) => { const c = new Map(); erros.forEach((l) => { const k = fn(l); c.set(k, (c.get(k) || 0) + 1); }); return [...c.entries()].sort((a, b) => b[1] - a[1]); };
+    const porIlha = conta((l) => l.ilha || '—').map(([k, n]) => ({ nome: 'Ilha ' + k, n, sub: fmt(L.filter((l) => (l.ilha || '—') === k).length) + ' faltantes na ilha' }));
+    const porResp = conta((l) => l.responsavel || 'Sem responsável cadastrado').map(([k, n]) => {
+      const ls = erros.filter((l) => (l.responsavel || 'Sem responsável cadastrado') === k);
+      return { nome: k, n, sub: 'ilhas ' + [...new Set(ls.map((l) => l.ilha))].join(', ') + ' · dias ' + [...new Set(ls.map((l) => l.dia.slice(0, 5)))].join(', ') };
+    });
+    const q = norm(S.buscaPer);
+    const tab = L.filter((l) => !q || norm([l.id, l.rota, l.ilha, l.responsavel, l.resultado, l.dia].join(' ')).includes(q))
+      .sort((a, b) => dataDe(b.dia) - dataDe(a.dia) || Number(ehErroCont(b.resultado)) - Number(ehErroCont(a.resultado)) || String(a.rota).localeCompare(String(b.rota)));
+    const semDados = !L.length;
+    m.innerHTML =
+      '<p class="lead">Período: <b>' + esc(P.rot || '') + '</b>' + (P.ini ? ' (' + esc(P.ini) + ' a ' + esc(P.fim) + ')' : '') + ' · <b>' + fmt(dias.length) + '</b> dia' + (dias.length === 1 ? '' : 's') + ' com dados. ' +
+      'Os dados vêm da aba <b>Resumo diário</b> (o resultado final já considera a sua classificação manual). Clique num dia para abrir o detalhe com a linha do tempo.</p>' +
+      (semDados ? '<p class="msg">Nenhum faltante neste período na aba Resumo diário. ' + (P.vazio ? 'Marque pelo menos um dia.' : 'O resumo começa nos dias que estavam na planilha quando o painel foi atualizado.') + '</p>' : '') +
+      '<section class="tiles">' +
+        tile('Faltantes', L.length, 'no período') +
+        tile('Média por dia', dias.length ? Math.round(L.length / dias.length) : 0, 'faltantes por dia com dados') +
+        tile('Erros de conteinerização', nErr, L.length ? Math.round(100 * nErr / L.length) + '% dos faltantes' : '—', nErr ? 'bad' : '') +
+        tile('Regra em aberto', nAb, 'sem classificação') +
+        tile('Classificados por você', nMan, 'classificação manual', 'man') +
+      '</section>' +
+      '<section class="card"><h2>Evolução por dia</h2><p class="note"><span class="leg" style="background:var(--vermelho)"></span> erros de conteinerização · <span class="leg" style="background:var(--cinza-apagado)"></span> outros faltantes. Clique no dia para ver o detalhe.</p>' + barrasSimples(porDia, maxD) + '</section>' +
+      '<div class="duas">' +
+        '<section class="card"><h2>Erros de conteinerização por responsável</h2><p class="note">Quem estava responsável pela ilha (letra da rota) no dia do erro — aba <b>Responsáveis</b>.</p>' + (porResp.length ? barrasSimples(porResp, Math.max(1, ...porResp.map((x) => x.n)), 'var(--vermelho)') : '<p class="note">Nenhum erro de conteinerização no período.</p>') + '</section>' +
+        '<section class="card"><h2>Erros de conteinerização por ilha</h2>' + (porIlha.length ? barrasSimples(porIlha, Math.max(1, ...porIlha.map((x) => x.n)), 'var(--vermelho)') : '<p class="note">Nenhum erro de conteinerização no período.</p>') + '</section>' +
+      '</div>' +
+      '<section class="card"><h2>Resultado de cada faltante no período</h2>' + barrasSimples(lista.map(([r, n]) => ({ nome: r, n, partes: [[n, COR(r)]] })), maxR) + '</section>' +
+      '<section class="card"><div class="tools"><h2>Pacotes do período</h2><input id="buscaPer" type="search" placeholder="Buscar shipment, rota, ilha, responsável…" value="' + esc(S.buscaPer) + '" aria-label="Buscar no período"></div>' +
+        '<div class="scroll"><table><thead><tr><th>Dia</th><th>Shipment</th><th>Rota</th><th>Ilha</th><th>Responsável da ilha</th><th>Resultado</th></tr></thead><tbody>' +
+        (tab.length ? tab.slice(0, 1500).map((l) => '<tr><td class="mono"><a href="#" data-abre="' + l.dia + '">' + esc(l.dia.slice(0, 5)) + '</a></td><td class="mono">' + esc(l.id) + '</td><td class="mono">' + esc(l.rota) + '</td><td class="mono">' + esc(l.ilha) + '</td><td>' + (l.responsavel ? esc(l.responsavel) : '<span class="sub">—</span>') + '</td><td class="res">' + esc(l.resultado) + (l.manual ? '<span class="pill man">manual</span>' : '') + (ehErroCont(l.resultado) && l.responsavel ? '<span class="sub">cobrar: ' + esc(l.responsavel) + '</span>' : '') + '</td></tr>').join('') : '<tr><td colspan="6" class="empty">Nenhum pacote.</td></tr>') +
+        '</tbody></table></div>' + (tab.length > 1500 ? '<p class="note">Mostrando os 1.500 primeiros. Use a busca.</p>' : '') + '</section>';
+    const abrir = (d) => { S.modo = 'dia'; S.dia = d; $('#selModo').value = 'dia'; desenharModo(); S.pacotes = []; S.vistosAntes = null; atualizar(false); window.scrollTo(0, 0); };
+    m.querySelectorAll('[data-dia]').forEach((b) => { b.onclick = () => abrir(b.dataset.dia); });
+    m.querySelectorAll('[data-abre]').forEach((a) => { a.onclick = (e) => { e.preventDefault(); abrir(a.dataset.abre); }; });
+    const bx = $('#buscaPer'); let tm; bx.oninput = () => { clearTimeout(tm); tm = setTimeout(() => { S.buscaPer = bx.value; const pos = bx.selectionStart; renderPeriodo(); const nb = $('#buscaPer'); nb.focus(); try { nb.setSelectionRange(pos, pos); } catch (e) {} }, 250); };
+  }
+
+  /* ---------- responsáveis por ilha (visão do dia) ---------- */
+  const ilhaDe = (rota) => { const mm = String(rota || '').trim().toUpperCase().match(/^([A-Z]+)\d/); return mm ? mm[1] : ''; };
+  const respDe = (p) => (S.resp && S.resp.mapa[ilhaDe(p.rota)]) || '';
+  function cartaoResponsaveis() {
+    if (S.servidor < 3) return '<p class="note">Para ver o indicador de semana/mês e os responsáveis por ilha, atualize o <b>Painel.gs</b> (cole a versão nova e publique uma nova versão).</p>';
+    if (!S.resp) return '';
+    const R = S.resp;
+    $('#lista-colab').innerHTML = (R.colaboradores || []).map((n) => '<option value="' + esc(n) + '">').join('');
+    const erros = S.pacotes.filter((p) => ehErroCont(resultado(p)));
+    const porResp = new Map(); erros.forEach((p) => { const k = respDe(p) || 'Sem responsável cadastrado'; if (!porResp.has(k)) porResp.set(k, []); porResp.get(k).push(p); });
+    const faltam = R.ilhas.filter((i) => !R.mapa[i]).length;
+    const ant = R.anterior && Object.keys(R.anterior.mapa || {}).length ? '<button type="button" class="chip" id="copiarAnt">Copiar do dia anterior (' + esc(R.anterior.dia.slice(0, 5)) + ')</button>' : '';
+    return '<section class="card" id="responsaveis"><div class="tools"><h2>Responsáveis por ilha</h2>' + ant + '</div>' +
+      '<p class="note">Uma pessoa por ilha (letra da rota: A1, A2… = ilha A) neste dia. Escreva ou escolha o nome; salva sozinho ao sair do campo. ' +
+      ((R.colaboradores || []).length ? 'Os nomes vêm da aba <b>Colaboradores</b>.' : 'Crie a aba <b>Colaboradores</b> (coluna "Nome") para o painel sugerir os nomes.') +
+      (faltam ? ' <b>' + faltam + '</b> ilha' + (faltam > 1 ? 's' : '') + ' sem responsável.' : '') + '</p>' +
+      '<div class="ilhas">' + R.ilhas.map((i) => '<label class="ilha"><span>Ilha <b>' + esc(i) + '</b></span><input type="text" list="lista-colab" data-ilha="' + esc(i) + '" id="resp-' + esc(i) + '" value="' + esc(R.mapa[i] || '') + '" placeholder="' + esc((R.anterior && R.anterior.mapa[i]) ? 'ontem: ' + R.anterior.mapa[i] : 'nome') + '"><span class="st" id="st-resp-' + esc(i) + '"></span></label>').join('') + '</div>' +
+      '<h2 style="margin-top:6px">Erros de conteinerização do dia por responsável</h2>' +
+      (erros.length ? '<div class="bars">' + [...porResp.entries()].sort((a, b) => b[1].length - a[1].length).map(([k, ps]) => '<div class="row"><span class="t">' + esc(k) + '<span class="sub">' + esc(ps.map((p) => p.rota + ' · ' + p.id).join(' | ')) + '</span></span><span class="track"><span class="fill" style="display:block;width:' + (100 * ps.length / erros.length) + '%;background:var(--vermelho)"></span></span><span class="n">' + ps.length + '</span></div>').join('') + '</div>'
+        : '<p class="note">Nenhum erro de conteinerização neste dia.</p>') + '</section>';
+  }
+  async function salvarResp(ilha, nome, st) {
+    if ((S.resp.mapa[ilha] || '') === nome) return;
+    st.textContent = 'Salvando…'; st.classList.remove('err');
+    try { await chamar('painelSalvarResponsavel', S.dia, ilha, nome); S.resp.mapa[ilha] = nome; render(); const s2 = document.getElementById('st-resp-' + ilha); if (s2) s2.textContent = 'Salvo'; }
+    catch (e) { st.textContent = 'Não salvou: ' + (e && e.message ? e.message : e); st.classList.add('err'); }
+  }
+  async function copiarAnterior() {
+    const ant = S.resp.anterior.mapa;
+    for (const i of S.resp.ilhas) if (ant[i] && !S.resp.mapa[i]) { try { await chamar('painelSalvarResponsavel', S.dia, i, ant[i]); S.resp.mapa[i] = ant[i]; } catch (e) { aviso('Não salvou a ilha ' + i + ': ' + e.message, true); break; } }
+    render();
+  }
+
   /* ---------- tela ---------- */
   const COR = (r) => /erro/i.test(r) ? 'var(--bad)' : /perdid|avaria/i.test(r) ? 'var(--warn)' : /ok\b|deslocado/i.test(r) ? 'var(--ok)' : /em aberto/i.test(r) ? 'var(--open)' : 'var(--man)';
 
   function render() {
     const m = $('#conteudo');
+    if (S.modo !== 'dia') { renderPeriodo(); return; }
     if (!S.dia) { m.innerHTML = ''; return; }
     // guarda o foco (o usuário pode estar digitando)
     const ae = document.activeElement, aid = ae && ae.id, aval = ae && 'value' in ae ? ae.value : null, apos = ae && ae.selectionStart;
@@ -313,12 +484,12 @@
     const nNovos = ps.reduce((a, p) => a + p.eventos.filter((e) => ehNovo(p, e)).length, 0);
     const pacNovos = ps.filter((p) => p.eventos.some((e) => ehNovo(p, e))).length;
 
-    const grupos = new Map();
-    for (const p of ps) { const r = resultado(p); grupos.set(r, (grupos.get(r) || 0) + 1); }
-    const lista = [...grupos.entries()].sort((a, b) => b[1] - a[1]);
+    const grupos = new Map(); // junta maiúscula/acento diferentes
+    for (const p of ps) { const r = resultado(p); const k = norm(r); const g = grupos.get(k) || [r, 0]; g[1]++; grupos.set(k, g); }
+    const lista = [...grupos.values()].sort((a, b) => b[1] - a[1]);
     const max = Math.max(1, ...lista.map((x) => x[1]));
     const q = norm(S.busca);
-    const visiveis = ps.filter((p) => (!S.soConflitos || conflito(p)) && (!S.filtro || resultado(p) === S.filtro) && (!q || norm(p.id + ' ' + p.rota + ' ' + p.rep + ' ' + resultado(p)).includes(q)))
+    const visiveis = ps.filter((p) => (!S.soConflitos || conflito(p)) && (!S.filtro || norm(resultado(p)) === norm(S.filtro)) && (!q || norm(p.id + ' ' + p.rota + ' ' + p.rep + ' ' + resultado(p)).includes(q)))
       .sort((a, b) => (Number(conflito(b)) - Number(conflito(a))) || (Number(b.eventos.some((e) => ehNovo(b, e))) - Number(a.eventos.some((e) => ehNovo(a, e)))) || resultado(a).localeCompare(resultado(b)) || a.rota.localeCompare(b.rota) || a.id.localeCompare(b.id));
 
     $('#lista-res').innerHTML = [...new Set([...SUGESTOES, ...Object.values(S.manual).map((v) => v.classificacao).filter(Boolean)])].map((s) => '<option value="' + esc(s) + '">').join('');
@@ -337,8 +508,9 @@
         tile('Bipes novos', nNovos, S.vistosAntes ? 'desde a sua última visita · ' + fmt(pacNovos) + ' pacotes' : 'primeira visita neste navegador', nNovos ? 'new' : '') +
       '</section>' +
       '<section class="card"><h2>Resultado de cada faltante</h2><p class="note">Clique numa barra para filtrar a tabela. Sua classificação manual sempre vence a regra.</p><div class="bars">' +
-        lista.map(([r, n]) => '<button type="button" class="row' + (S.filtro === r ? ' sel' : S.filtro ? ' dim' : '') + '" data-r="' + esc(r) + '"><span class="t">' + esc(r) + '</span><span class="track"><span class="fill" style="display:block;width:' + (100 * n / max) + '%;background:' + COR(r) + '"></span></span><span class="n">' + fmt(n) + '</span></button>').join('') +
+        lista.map(([r, n]) => '<button type="button" class="row' + (S.filtro && norm(S.filtro) === norm(r) ? ' sel' : S.filtro ? ' dim' : '') + '" data-r="' + esc(r) + '"><span class="t">' + esc(r) + '</span><span class="track"><span class="fill" style="display:block;width:' + (100 * n / max) + '%;background:' + COR(r) + '"></span></span><span class="n">' + fmt(n) + '</span></button>').join('') +
       '</div></section>' +
+      cartaoResponsaveis() +
       cartaoRegras() +
       '<section class="card" id="tabela"><div class="tools"><h2>Pacote a pacote</h2><input id="busca" type="search" placeholder="Buscar shipment, rota, rep…" value="' + esc(S.busca) + '" aria-label="Buscar"></div>' +
         '<p class="note">Mostrando <b>' + esc(S.soConflitos ? 'só os conflitos' : (S.filtro || 'todos os resultados')) + '</b> · ' + fmt(visiveis.length) + ' pacotes' + (S.filtro ? ' · <button type="button" class="chip" id="limpar">Mostrar todos</button>' : '') +
@@ -347,7 +519,7 @@
         (visiveis.length ? visiveis.map(linhaPacote).join('') : '<tr><td colspan="5" class="empty">Nenhum pacote.</td></tr>') +
         '</tbody></table></div></section>';
 
-    m.querySelectorAll('.row').forEach((b) => b.onclick = () => { S.filtro = S.filtro === b.dataset.r ? null : b.dataset.r; render(); if (S.filtro) $('#tabela').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+    m.querySelectorAll('.row').forEach((b) => b.onclick = () => { S.filtro = S.filtro && norm(S.filtro) === norm(b.dataset.r) ? null : b.dataset.r; render(); if (S.filtro) $('#tabela').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
     const l = $('#limpar'); if (l) l.onclick = () => { S.filtro = null; S.soConflitos = false; render(); };
     const bc = $('#btnConflitos'); if (bc) bc.onclick = () => { S.soConflitos = !S.soConflitos; S.filtro = null; render(); $('#tabela').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
     m.querySelectorAll('[data-acao]').forEach((b) => { b.onclick = () => decidir(porIdC.get(b.dataset.id), b.dataset.acao, b); });
@@ -358,6 +530,8 @@
     m.querySelectorAll('[data-campo]').forEach((el) => {
       el.onchange = () => { const p = porId.get(el.dataset.id); salvar(p, el.dataset.campo, el.value.trim(), document.getElementById('st-' + el.dataset.campo + '-' + p.id)); };
     });
+    m.querySelectorAll('[data-ilha]').forEach((el) => { el.onchange = () => salvarResp(el.dataset.ilha, el.value.trim(), document.getElementById('st-resp-' + el.dataset.ilha)); });
+    const ca = $('#copiarAnt'); if (ca) ca.onclick = copiarAnterior;
     if (aid) { const el = document.getElementById(aid); if (el) { if (aval != null && el.value !== aval) el.value = aval; el.focus(); try { if (apos != null) el.setSelectionRange(apos, apos); } catch (e) {} } }
   }
 
@@ -396,7 +570,9 @@
       '<textarea id="r-' + p.id + '" data-id="' + p.id + '" data-campo="raciocinio" placeholder="O que você viu para chegar nessa classificação" aria-label="Raciocínio de ' + p.id + '">' + esc(man.raciocinio || '') + '</textarea><span class="st" id="st-raciocinio-' + p.id + '"></span></td>';
     return '<tr><td class="mono">' + esc(p.id) + (novos ? '<span class="pill novo">' + novos + ' novo' + (novos > 1 ? 's' : '') + '</span>' : '') +
       (p.temSorting ? '' : '<span class="pill sem">sem sorting no dia</span>') + (p.janelaFechada ? '' : '<span class="pill aberta">janela aberta até ' + curto(p.fim) + '</span>') + '</td>' +
-      '<td class="rota"><b>' + esc(p.rota) + '</b><span class="sub">' + esc(String(p.horaAduana).slice(0, 5)) + ' · ' + esc(p.rep) + '</span>' + (p.vezesFaltante > 1 ? '<span class="sub">faltante ' + p.vezesFaltante + 'x no dia</span>' : '') + '</td>' +
+      '<td class="rota"><b>' + esc(p.rota) + '</b><span class="sub">' + esc(String(p.horaAduana).slice(0, 5)) + ' · ' + esc(p.rep) + '</span>' +
+        (S.resp && ilhaDe(p.rota) ? '<span class="sub">Ilha ' + esc(ilhaDe(p.rota)) + ' · ' + (respDe(p) ? 'resp.: <b>' + esc(respDe(p)) + '</b>' : 'sem responsável') + '</span>' : '') +
+        (S.resp && ehErroCont(resultado(p)) && respDe(p) ? '<span class="pill sem" style="margin-left:0">cobrar: ' + esc(respDe(p)) + '</span>' : '') + (p.vezesFaltante > 1 ? '<span class="sub">faltante ' + p.vezesFaltante + 'x no dia</span>' : '') + '</td>' +
       res + '<td class="tl">' + tl + '</td>' + ed + '</tr>';
   }
 
@@ -413,6 +589,9 @@
   $('#rodape').textContent = 'Dados ao vivo da planilha "Conteneirização de Pacotes - Base SSP53". Atualiza sozinho a cada ' + CONFIG.ATUALIZAR_MIN + ' min. Regras: ' + (window.REGRAS ? window.REGRAS.versao : '—') + '.';
   $('#btnAtualizar').onclick = () => atualizar(true);
   $('#selDia').onchange = (e) => { salvarVistos(); S.dia = e.target.value; S.vistosAntes = null; S.filtro = null; S.pacotes = []; try { history.replaceState(null, '', '#' + encodeURIComponent(S.dia)); } catch (x) {} atualizar(false); };
+  $('#selModo').onchange = (e) => { S.modo = e.target.value; S.filtro = null; if (S.modo === 'escolher' && !S.escolhidos.length && S.dia) S.escolhidos = [S.dia]; desenharModo(); atualizar(false); };
+  $('#selSemana').onchange = (e) => { S.semana = e.target.value; atualizar(false); };
+  $('#selMes').onchange = (e) => { S.mes = e.target.value; atualizar(false); };
   $('#btnVisto').onclick = () => { salvarVistos(); S.vistosAntes = lerVistos(); render(); };
   addEventListener('pagehide', salvarVistos);
   document.addEventListener('visibilitychange', () => { if (document.hidden) salvarVistos(); else atualizar(false); });

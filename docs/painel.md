@@ -25,6 +25,14 @@ Código: [`apps-script/painel/`](../apps-script/painel/) — 3 arquivos: `Painel
   "Mostrar só os conflitos" e, no pacote, os botões **Manter a minha** (grava a regra na coluna F "Regra conferida" da
   aba Classificação manual — não pergunta de novo, a não ser que a regra mude outra vez) e **Usar a regra** (apaga a sua
   classificação; o raciocínio fica). Mudar o texto da sua classificação "zera" a decisão.
+- **Período: Um dia · Semana · Mês · Escolher dias** (seletor no topo). Na semana/mês: indicadores do período, evolução
+  por dia, **erros de conteinerização por responsável e por ilha**, resultados e a lista de pacotes. Clicar num dia abre o
+  detalhe com a linha do tempo. Os dados vêm da aba **Resumo diário**, que o gatilho preenche sozinho (1 linha por faltante
+  por dia) — por isso o mês continua disponível mesmo depois que a planilha arquiva os dados com mais de 15 dias.
+- **Responsáveis por ilha** (no dia): uma caixa por ilha (letra da rota: A1, A2… = ilha **A**), com os nomes da aba
+  **Colaboradores** (coluna "Nome") e o botão "Copiar do dia anterior". Fica na aba **Responsáveis**. Pacote com
+  **erro de conteinerização** mostra "cobrar: Nome"; o cartão "Erros de conteinerização do dia por responsável" resume.
+  (Vale para todos os pacotes até existir a aba que diz o que é volumoso.)
 - **Bipes novos** (amarelo): o que apareceu desde a última vez que você abriu o painel neste navegador.
 - **Rápido**: um gatilho (`painelPreparar`, a cada 5 min) deixa prontos os dias com faltantes dos últimos 4 dias. O painel
   abre em 1–2 s e mostra "Dados preparados às HH:MM". Dias mais antigos são calculados na 1ª vez (~10 s) e ficam guardados 6 h.
@@ -45,7 +53,9 @@ Código: [`apps-script/painel/`](../apps-script/painel/) — 3 arquivos: `Painel
 3. Salve. Rode, uma vez cada (lista de funções ao lado de **Debug** › **Run**), aceitando as permissões
    (inclui "conectar a um serviço externo", que é o GitHub):
    - **painelCriarAbaRegras** — cria a aba **Regras** na planilha (se ela já existir, não mexe);
-   - **painelCriarGatilho** — liga a preparação automática dos dados. Em **Execution log** deve aparecer "Preparados: …"
+   - **painelCriarGatilho** — liga a preparação automática dos dados.
+   - **painelPreencherResumo** — preenche a aba **Resumo diário** com os dias que já estão na planilha (uma vez; se
+     aparecer "rode de novo", rode de novo). Em **Execution log** deve aparecer "Preparados: …"
      e "Gatilho criado". (Para conferir só a leitura, há também **painelTestar**.)
 4. **Deploy** (Implantar) › **New deployment** (Nova implantação) › engrenagem › **Web app**.
    - Description: `Painel de faltantes`

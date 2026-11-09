@@ -12,13 +12,19 @@ Quase tudo roda sozinho. A parte do Rafael: **exportar, olhar o painel e decidir
 4. **Abrir o painel** (conta @dhl.com; no computador pessoal, janela anônima + login DHL):
    https://script.google.com/a/macros/dhl.com/s/AKfycby_asEzOPexlsqS279IgK4b-SI8D6MHjAHx5eAeg5s5lBxOz8zQ-cqyy7tnNRNj2Vpq/exec
    Escolher o dia. Conferir no topo "Dados preparados às HH:MM" (no máximo ~10 min atrás).
-5. **Revisar, nesta ordem** (10–20 min):
+5. **Preencher os responsáveis do dia** (1–2 min): no cartão **Responsáveis por ilha**, clicar em "Copiar do dia
+   anterior" e trocar só quem mudou.
+6. **Revisar, nesta ordem** (10–20 min):
    1. **Para decidir** → "Mostrar só os conflitos" → *Manter a minha* ou *Usar a regra*.
    2. **Regra em aberto** (barra cinza) → ler a linha do tempo → preencher *Sua classificação* e *Raciocínio* (salva sozinho).
    3. **Bipes novos** (amarelo) → ver se mudam alguma conclusão.
    4. **Sem sorting no dia** → conferir esses pacotes.
-6. **Na reunião**: painel aberto; clicar nas barras de "Resultado de cada faltante" para mostrar cada grupo; busca por
+7. **Na reunião**: painel aberto; clicar nas barras de "Resultado de cada faltante" para mostrar cada grupo; busca por
    shipment/rota/rep. Atualiza sozinho a cada 5 min.
+
+## Indicador semanal / mensal
+- Segunda-feira: Período = **Semana** (a anterior) → ver "Erros de conteinerização por responsável" e "por ilha" para a cobrança.
+- Fim do mês: Período = **Mês**. Para comparar dias soltos: **Escolher dias**.
 
 ## Uma vez por semana (2 min)
 - Aba **Log importação** da planilha: linhas com "OK".

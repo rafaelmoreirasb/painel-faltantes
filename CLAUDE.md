@@ -39,6 +39,9 @@ atualize os arquivos do repositório — é aqui que o conhecimento fica, não n
 | Inventário, Tratativas | já se atualizam sozinhos |
 | Torre Aduana | ? (confirmar com o Rafael) |
 | Regras | o Rafael edita (ordem, liga/desliga, texto); criada por `painelCriarAbaRegras` |
+| Resumo diário | gatilho `painelPreparar` regrava cada dia enquanto está na planilha (≤15 dias); `painelPreencherResumo` preenche de uma vez. 1 linha por faltante por dia (Dia, Shipment, Rota, Ilha, Rep, Resultado da regra, Código, Teve sorting) — base de semana/mês. Regras rodam também no servidor (eval do Regras.html) |
+| Responsáveis | o Rafael preenche no painel: 1 pessoa por **ilha = letra da rota** (A1, A2… = A) por dia, sem turno. Erro de conteinerização → "cobrar" o responsável da ilha no dia |
+| Colaboradores | aba que o Rafael cria; o painel lê a coluna com "Nome" no cabeçalho (senão a A) para sugerir nomes |
 | Classificação manual | o Rafael classifica no painel (ou direto na aba); o painel grava Data, Shipment ID, Classificação, Raciocínio, Quem classificou, **Regra conferida** (F: regra que ele viu e decidiu não usar — conflito manual × regra) |
 
 **Retenção:** a planilha principal guarda só os últimos **15 dias** dessas 3 abas; toda madrugada o resto vai para

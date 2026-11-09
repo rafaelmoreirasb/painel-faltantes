@@ -22,6 +22,9 @@ const PainelFaltantes = (() => {
     GITHUB_CACHE_SEG: 300,
     ABA_MANUAL: 'Classificação manual',
     ABA_REGRAS: 'Regras', // ordem, liga/desliga e texto das regras (o Rafael edita direto na planilha)
+    ABA_RESUMO: 'Resumo diário',      // 1 linha por faltante por dia — base dos indicadores de semana/mês
+    ABA_RESPONSAVEIS: 'Responsáveis', // quem responde por cada ilha (letra da rota) em cada dia
+    ABA_COLABORADORES: 'Colaboradores', // lista de nomes (o Rafael cria; coluna com "Nome" no cabeçalho)
     PLANILHA_ID: '1nDqe83XDoY-A3u6rNxaMP2RT74mZNjrYSDUY2c9dKhk', // Conteneirização de Pacotes - Base SSP53
   };
 
@@ -306,9 +309,12 @@ const PainelFaltantes = (() => {
     for (const d of dias) {
       if (d.t < limite) continue;
       if (Date.now() - inicio > 4.5 * 60 * 1000) break; // não passa do limite de 6 min do Google
-      dadosDoDia(d.dia, true);
+      const dd = dadosDoDia(d.dia, true);
+      try { gravarResumoDia(d.dia, dd); } catch (e) { console.warn('Resumo diário de ' + d.dia + ': ' + e.message); }
       feitos.push(d.dia);
     }
+    // dias que ainda estão na planilha mas não têm resumo (ex.: logo depois de instalar)
+    try { if (Date.now() - inicio < 3 * 60 * 1000) preencherResumo(true); } catch (e) { console.warn('Resumo: ' + e.message); }
     return { dias: feitos, segundos: Math.round((Date.now() - inicio) / 100) / 10 };
   }
 
@@ -330,7 +336,183 @@ const PainelFaltantes = (() => {
     return HtmlService.createHtmlOutputFromFile(nome).getContent();
   }
 
-  return { CFG, FONTES, listarDias, dadosDoDia, lerManual, lerRegras, criarAbaRegras, salvarClassificacao, lerDataHora, diaDe, planilha, preparar, arquivoTela };
+
+  /* ===================== Indicadores de semana/mês e responsáveis por ilha ===================== */
+  const CAB_RESUMO = ['Dia', 'Shipment ID', 'Rota', 'Ilha', 'Rep aduana', 'Resultado da regra', 'Código da regra', 'Teve sorting', 'Atualizado em'];
+  const CAB_RESP = ['Data', 'Ilha', 'Responsável', 'Quem preencheu', 'Atualizado em'];
+
+  /** Ilha = letra(s) do começo da rota: A1_AM1 → A; AB3_PM1 → AB. */
+  function ilhaDe(rota) { const m = String(rota || '').trim().toUpperCase().match(/^([A-Z]+)\d/); return m ? m[1] : ''; }
+  const agoraTxt = () => Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM/yyyy HH:mm:ss');
+
+  function abaCom(nome, cab) {
+    const ss = planilha();
+    let aba = ss.getSheetByName(nome);
+    if (!aba) { aba = ss.insertSheet(nome); aba.getRange(1, 1, 1, cab.length).setValues([cab]).setFontWeight('bold'); aba.setFrozenRows(1); }
+    return aba;
+  }
+  function lerTudo(aba, nCols) {
+    const n = aba.getLastRow();
+    return n < 2 ? [] : aba.getRange(2, 1, n - 1, nCols).getDisplayValues();
+  }
+  function reescrever(aba, linhas, nCols) {
+    const n = aba.getLastRow();
+    if (n > 1) aba.getRange(2, 1, n - 1, nCols).clearContent();
+    if (!linhas.length) return;
+    if (linhas.length + 1 > aba.getMaxRows()) aba.insertRowsAfter(aba.getMaxRows(), linhas.length + 1 - aba.getMaxRows());
+    const r = aba.getRange(2, 1, linhas.length, nCols);
+    r.setNumberFormat('@');
+    r.setValues(linhas);
+  }
+
+  /** As MESMAS regras da tela (Regras.html, do GitHub ou cópia local), rodando no servidor. */
+  let _motor = null;
+  function motorRegras() {
+    if (_motor) return _motor;
+    const html = arquivoTela('Regras');
+    const codigo = html.replace(/^[\s\S]*?<script>/i, '').replace(/<\/script>[\s\S]*$/i, '');
+    const win = {};
+    new Function('window', 'console', codigo)(win, console);
+    if (!win.REGRAS) throw new Error('Não consegui carregar as regras (Regras.html).');
+    _motor = win.REGRAS;
+    return _motor;
+  }
+  /** Classifica os pacotes de um dia exatamente como a tela faz. */
+  function classificarDia(dados) {
+    const R = motorRegras();
+    const regras = R.montar(lerRegras());
+    return dados.pacotes.map((p0) => {
+      const p = JSON.parse(JSON.stringify(p0));
+      p.inicio = new Date(p.inicio); p.fim = new Date(p.fim);
+      p.eventos.forEach((e) => { e.quando = new Date(e.t); });
+      p.ancora = p.eventos.find((e) => e.chave === p.ancora) || null;
+      try { return R.classificar(p, regras); } catch (e) { return { resultado: 'Regra em aberto', codigo: '' }; }
+    });
+  }
+
+  /** Regrava as linhas de um dia na aba Resumo diário (sem duplicar). */
+  function gravarResumoDia(dia, dados) {
+    dados = dados || dadosDoDia(dia, false);
+    const res = classificarDia(dados);
+    const quando = agoraTxt();
+    const novas = dados.pacotes.map((p, i) => [dia, String(p.id), p.rota || '', ilhaDe(p.rota), p.rep || '', res[i].resultado || '', res[i].codigo || '', p.temSorting ? 'Sim' : 'Não', quando]);
+    const aba = abaCom(CFG.ABA_RESUMO, CAB_RESUMO);
+    const outras = lerTudo(aba, CAB_RESUMO.length).filter((r) => diaDe(r[0]) !== dia && String(r[1]).trim());
+    const todas = outras.concat(novas).sort((a, b) => lerDataHora(a[0]) - lerDataHora(b[0]) || String(a[2]).localeCompare(String(b[2])));
+    reescrever(aba, todas, CAB_RESUMO.length);
+    return novas.length;
+  }
+  function diasNoResumo() {
+    const aba = planilha().getSheetByName(CFG.ABA_RESUMO);
+    if (!aba) return {};
+    const c = {};
+    lerTudo(aba, 1).forEach((r) => { const d = diaDe(r[0]); if (d) c[d] = (c[d] || 0) + 1; });
+    return c;
+  }
+  /** Preenche o resumo: todos os dias que ainda estão na planilha principal (ou só os que faltam). */
+  function preencherResumo(soFaltando) {
+    const inicio = Date.now();
+    const ja = diasNoResumo();
+    const feitos = [];
+    for (const d of listarDias(false)) {
+      if (soFaltando && ja[d.dia]) continue;
+      if (Date.now() - inicio > 4.5 * 60 * 1000) break;
+      feitos.push(d.dia + ' (' + gravarResumoDia(d.dia) + ')');
+    }
+    return { dias: feitos, segundos: Math.round((Date.now() - inicio) / 100) / 10 };
+  }
+
+  /** Responsáveis por ilha: mapa { 'dd/mm/aaaa': { A: 'Nome', ... } } */
+  function mapaResponsaveis() {
+    const aba = planilha().getSheetByName(CFG.ABA_RESPONSAVEIS);
+    const m = {};
+    if (!aba) return m;
+    for (const r of lerTudo(aba, CAB_RESP.length)) {
+      const d = diaDe(r[0]), il = String(r[1]).trim().toUpperCase(), nome = String(r[2]).trim();
+      if (!d || !il) continue;
+      (m[d] = m[d] || {})[il] = nome;
+    }
+    return m;
+  }
+  /** Ilhas que operaram no dia (letras das rotas da aba Aduana) — guardado 6 h. */
+  function ilhasDoDia(dia) {
+    const chave = 'ilhas:' + dia;
+    const c = cacheLer(chave);
+    if (c) return c;
+    const D = lerDataHora(dia);
+    const r = lerAba('aduana', [D]);
+    const set = {};
+    r.linhas.forEach((o) => { if (diaDe(o['Data auditoria']) === dia) { const il = ilhaDe(o['ID da rota']); if (il) set[il] = 1; } });
+    const lista = Object.keys(set).sort();
+    cacheGravar(chave, lista);
+    return lista;
+  }
+  function responsaveis(dia) {
+    if (!diaDe(dia)) throw new Error('Dia inválido.');
+    const mapa = mapaResponsaveis();
+    const anteriores = Object.keys(mapa).filter((d) => lerDataHora(d) < lerDataHora(dia)).sort((a, b) => lerDataHora(b) - lerDataHora(a));
+    const anterior = anteriores.length ? { dia: anteriores[0], mapa: mapa[anteriores[0]] } : null;
+    const ilhas = {};
+    ilhasDoDia(dia).forEach((i) => { ilhas[i] = 1; });
+    Object.keys(mapa[dia] || {}).forEach((i) => { ilhas[i] = 1; });
+    return { dia, ilhas: Object.keys(ilhas).sort(), mapa: mapa[dia] || {}, anterior, colaboradores: colaboradores() };
+  }
+  function salvarResponsavel(dia, ilha, nome) {
+    dia = diaDe(dia); ilha = String(ilha || '').trim().toUpperCase();
+    if (!dia || !/^[A-Z]+$/.test(ilha)) throw new Error('Dia ou ilha inválidos.');
+    const lock = LockService.getScriptLock();
+    lock.waitLock(20000);
+    try {
+      const aba = abaCom(CFG.ABA_RESPONSAVEIS, CAB_RESP);
+      let quem = '';
+      try { quem = Session.getActiveUser().getEmail(); } catch (e) {}
+      const linha = [dia, ilha, String(nome || '').trim(), quem || '(painel)', agoraTxt()];
+      const v = lerTudo(aba, 2);
+      let alvo = 0;
+      for (let i = v.length - 1; i >= 0; i--) if (diaDe(v[i][0]) === dia && String(v[i][1]).trim().toUpperCase() === ilha) { alvo = i + 2; break; }
+      if (!alvo) alvo = aba.getLastRow() + 1;
+      const r = aba.getRange(alvo, 1, 1, CAB_RESP.length);
+      r.setNumberFormat('@');
+      r.setValues([linha]);
+      return { ok: true };
+    } finally {
+      lock.releaseLock();
+    }
+  }
+  /** Nomes da aba Colaboradores (coluna com "nome" no cabeçalho; senão a coluna A). */
+  function colaboradores() {
+    const aba = planilha().getSheetByName(CFG.ABA_COLABORADORES);
+    if (!aba || aba.getLastRow() < 2) return [];
+    const v = aba.getRange(1, 1, aba.getLastRow(), Math.max(1, aba.getLastColumn())).getDisplayValues();
+    let col = v[0].findIndex((c) => /nome/i.test(String(c)));
+    if (col < 0) col = 0;
+    const nomes = {};
+    v.slice(1).forEach((r) => { const n = String(r[col] || '').trim(); if (n) nomes[n] = 1; });
+    return Object.keys(nomes).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  }
+  /** Linhas do resumo entre dois dias (inclusive), com a classificação manual e o responsável da ilha. */
+  function resumoPeriodo(ini, fim) {
+    const a = lerDataHora(ini), b = lerDataHora(fim);
+    if (!a || !b) throw new Error('Período inválido.');
+    const aba = planilha().getSheetByName(CFG.ABA_RESUMO);
+    const manual = lerManual();
+    const resp = mapaResponsaveis();
+    const linhas = [];
+    if (aba) for (const r of lerTudo(aba, CAB_RESUMO.length)) {
+      const dia = diaDe(r[0]); const d = lerDataHora(dia);
+      if (!d || d < a || d > b) continue;
+      const id = String(r[1]).trim();
+      const m = manual[dia + '|' + id] || manual['*|' + id];
+      const ilha = String(r[3]).trim() || ilhaDe(r[2]);
+      linhas.push({ dia, id, rota: r[2], ilha, rep: r[4], regra: r[5], codigo: r[6], sorting: r[7] === 'Sim',
+        manual: m && m.classificacao ? m.classificacao : '', resultado: m && m.classificacao ? m.classificacao : r[5],
+        responsavel: (resp[dia] || {})[ilha] || '' });
+    }
+    return { ini: diaDe(ini), fim: diaDe(fim), linhas, diasNoResumo: diasNoResumo() };
+  }
+
+  return { CFG, FONTES, listarDias, dadosDoDia, lerManual, lerRegras, criarAbaRegras, salvarClassificacao, lerDataHora, diaDe, planilha, preparar, arquivoTela,
+    gravarResumoDia, preencherResumo, responsaveis, salvarResponsavel, colaboradores, resumoPeriodo, ilhaDe, classificarDia };
 })();
 
 /* ===== Funções que o Google chama (precisam ficar soltas, com nomes únicos no projeto) ===== */
@@ -354,7 +536,7 @@ function painelPreparar() {
 function painelListarDias() { return PainelFaltantes.listarDias(); }
 function painelDadosDoDia(dia, forcar) {
   const d = PainelFaltantes.dadosDoDia(dia, !!forcar);
-  return JSON.stringify({ servidor: 2, dados: d, manual: PainelFaltantes.lerManual(), regras: PainelFaltantes.lerRegras(), url: PainelFaltantes.planilha().getUrl() }); // servidor 2 = guarda 'Regra conferida'
+  return JSON.stringify({ servidor: 3, dados: d, manual: PainelFaltantes.lerManual(), regras: PainelFaltantes.lerRegras(), url: PainelFaltantes.planilha().getUrl() }); // servidor 3 = Regra conferida + resumo/semana/mês + responsáveis
 }
 function painelSalvarClassificacao(dia, id, classificacao, raciocinio, regraConferida) {
   return PainelFaltantes.salvarClassificacao(dia, id, classificacao, raciocinio, regraConferida);
@@ -372,3 +554,13 @@ function painelTestar() {
 }
 /** Rode uma vez no editor: cria a aba "Regras" na planilha (não apaga nada se ela já existir). */
 function painelCriarAbaRegras() { console.log(PainelFaltantes.criarAbaRegras()); }
+
+/* ===== Semana/mês e responsáveis por ilha ===== */
+function painelResumoPeriodo(ini, fim) { return JSON.stringify(PainelFaltantes.resumoPeriodo(ini, fim)); }
+function painelResponsaveis(dia) { return JSON.stringify(PainelFaltantes.responsaveis(dia)); }
+function painelSalvarResponsavel(dia, ilha, nome) { return PainelFaltantes.salvarResponsavel(dia, ilha, nome); }
+/** Rode UMA vez depois de instalar: preenche a aba "Resumo diário" com os dias que já estão na planilha. */
+function painelPreencherResumo() {
+  const r = PainelFaltantes.preencherResumo(false);
+  console.log('Resumo diário preenchido: ' + (r.dias.join(', ') || 'nenhum dia') + ' em ' + r.segundos + ' s.' + (r.segundos > 270 ? ' Faltaram dias: rode de novo.' : ''));
+}
