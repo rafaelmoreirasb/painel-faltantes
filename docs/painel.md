@@ -16,6 +16,8 @@ Código: [`apps-script/painel/`](../apps-script/painel/) — 3 arquivos: `Painel
   a etiqueta "sem sorting no dia".
 - **Resultado**: a regra automática (aba **Regras** + `Regras.html`; o que nenhuma cobrir fica "Regra em aberto")
   ou a **sua classificação**, que sempre vence.
+- **regra ✓** (pílula verde): quando a sua classificação manual e a regra dizem a mesma coisa, o painel mostra qual regra
+  concordou (ex.: "R01 concorda · A mais na Torre na rota A3_AM1 (faltou na A1_AM1)").
 - **Regras em uso**: a lista da aba Regras, com quantos pacotes do dia caíram em cada regra. Na aba você muda ordem,
   liga/desliga e o texto do resultado sozinho (ver `regras/REGRAS.md`).
 - **Sua classificação**: nas duas últimas colunas você escolhe/escreve a classificação e o raciocínio. Salva sozinho ao sair

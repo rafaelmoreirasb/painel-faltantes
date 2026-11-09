@@ -112,6 +112,7 @@
   .pill.man { color: var(--preto); background: var(--amarelo); border-color: var(--amarelo); }
   .pill.novo { color: var(--preto); background: var(--amarelo-claro); border-color: var(--amarelo); }
   .pill.sem { color: var(--vermelho); background: var(--vermelho-claro); border-color: var(--vermelho-claro); }
+  .pill.ok { color: var(--verde); background: var(--verde-claro); border-color: var(--verde-claro); }
   .pill.aberta { color: var(--ambar); } .pill.ini { color: var(--preto); margin-left: 0; }
   .sub { display: block; font-size: 12px; font-weight: 400; color: var(--cinza-texto); }
   .empty { text-align: center; color: var(--cinza-texto); padding: 28px 0; }
@@ -560,7 +561,9 @@
     const conf = conflito(p);
     const caixa = conf ? '<div class="conflito"><b>Conflito:</b> você classificou <b>' + esc(man.classificacao) + '</b>. A regra' + (p.regra.codigo ? ' <b>' + esc(p.regra.codigo) + '</b>' : '') + ' agora diz <b>' + esc(p.regra.resultado) + '</b>. Qual manter?' +
       '<span class="botoes"><button type="button" data-acao="manter" data-id="' + p.id + '">Manter a minha</button><button type="button" class="usar" data-acao="regra" data-id="' + p.id + '">Usar a regra</button></span><span class="st"></span></div>' : '';
-    const res = '<td class="res">' + esc(resultado(p)) + (temMan ? '<span class="pill man">manual</span>' : '') + (conf ? '<span class="pill sem">conflito</span>' : '') + caixa +
+    const concorda = temMan && p.regra.codigo && norm(p.regra.resultado) === norm(man.classificacao); // manual e regra dizem o mesmo
+    const res = '<td class="res">' + esc(resultado(p)) + (temMan ? '<span class="pill man">manual</span>' : '') + (concorda ? '<span class="pill ok">regra ✓</span>' : '') + (conf ? '<span class="pill sem">conflito</span>' : '') + caixa +
+      (concorda ? '<span class="sub">' + esc(p.regra.codigo) + ' concorda' + (p.regra.detalhe ? ' · ' + esc(p.regra.detalhe) : '') + '</span>' : '') +
       (temMan && !conf && norm(p.regra.resultado) !== norm(man.classificacao) && !/em aberto/i.test(p.regra.resultado) ? '<span class="sub">Regra: ' + esc(p.regra.resultado) + ' (você decidiu manter a sua' + (S.servidor >= 2 ? '' : ' — salvo só neste navegador') + ')</span>' : '') +
       (!temMan && p.regra.regra ? '<span class="sub">' + esc(p.regra.regra) + '</span>' : '') +
       (!temMan && p.regra.detalhe ? '<span class="sub">' + esc(p.regra.detalhe) + '</span>' : '') +
