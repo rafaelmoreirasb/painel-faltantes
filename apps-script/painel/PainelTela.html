@@ -232,7 +232,7 @@
   /* ---------- estado ---------- */
   const S = { dias: [], dia: null, pacotes: [], manual: {}, filtro: null, busca: '', vistosAntes: null, carregando: false, ultima: null, avisos: [], url: '', segundos: 0, regras: [], abaRegras: true, servidor: 1, soConflitos: false,
     modo: 'dia', semana: '', mes: '', escolhidos: [], periodo: null, resp: null, buscaPer: '', diasResumo: [],
-    aba: 'faltantes', respDia: '', respAba: null, respLinhas: [], respErro: '' };
+    aba: 'faltantes', respDia: '', respAba: null, respSeg: null, respLinhas: [], respErro: '' };
   const manualDe = (p) => S.manual[p.dia + '|' + p.id] || S.manual['*|' + p.id] || null;
   const resultado = (p) => { const m = manualDe(p); return m && m.classificacao ? m.classificacao : p.regra.resultado; };
 
@@ -494,10 +494,21 @@
     while (linhas.length < LINHAS_INICIAIS) linhas.push({ ilha: '', nome: '', salva: '' });
     S.respLinhas = linhas;
   }
+  /** Mostra o formulário na hora (campos travados) enquanto a planilha responde. */
+  function esqueletoResp() {
+    let linhas = '';
+    for (let i = 0; i < LINHAS_INICIAIS; i++) linhas += '<div class="linha-resp"><label>Ilha<input type="text" class="ilha-letra" disabled placeholder="A"></label><label>Responsável<select disabled><option>carregando…</option></select></label><span class="st"></span></div>';
+    return '<section class="card" id="respCarregando"><div class="tools"><h2>Responsáveis por ilha</h2></div>' +
+      '<div class="controls"><label>Dia<input type="date" disabled value="' + isoDe(S.respDia) + '"></label></div>' +
+      '<p class="note">Carregando os responsáveis de ' + esc(S.respDia) + '…</p><div class="linhas-resp">' + linhas + '</div></section>';
+  }
   async function carregarRespAba() {
     if (!S.respDia) S.respDia = dmyD(new Date());
+    if (!S.respAba || S.respAba.dia !== S.respDia) $('#conteudo').innerHTML = esqueletoResp();
+    const t0 = Date.now();
     try {
       S.respAba = JSON.parse(await chamar('painelResponsaveis', S.respDia, true));
+      S.respSeg = (Date.now() - t0) / 1000;
       S.respErro = '';
       if (S.servidor < 3) S.servidor = 3;
     } catch (e) {
@@ -520,7 +531,8 @@
       '<div class="controls"><label>Dia<input type="date" id="respDia" value="' + isoDe(S.respDia) + '"></label></div>' +
       '<p class="note">Em cada linha, digite a <b>letra da ilha</b> (a letra da rota: A1, A2… = ilha <b>A</b>) e escolha o <b>responsável</b>. Salva sozinho. ' +
         ((R.colaboradores || []).length ? 'Os nomes vêm da aba <b>Colaboradores</b>.' : 'Crie a aba <b>Colaboradores</b> (coluna "Nome") para aparecer a lista de nomes.') +
-        ' <b>' + preenchidas + '</b> ilha' + (preenchidas === 1 ? '' : 's') + ' preenchida' + (preenchidas === 1 ? '' : 's') + ' em ' + esc(S.respDia) + '.</p>' +
+        ' <b>' + preenchidas + '</b> ilha' + (preenchidas === 1 ? '' : 's') + ' preenchida' + (preenchidas === 1 ? '' : 's') + ' em ' + esc(S.respDia) + '.' +
+        (S.respSeg != null ? ' <span class="sub">(carregou em ' + S.respSeg.toFixed(1).replace('.', ',') + ' s)</span>' : '') + '</p>' +
       '<div class="linhas-resp">' + S.respLinhas.map((l, i) => '<div class="linha-resp" data-linha="' + i + '">' +
           '<label>Ilha<input type="text" class="ilha-letra" data-campo="ilha" maxlength="3" value="' + esc(l.ilha) + '" placeholder="A" autocomplete="off" aria-label="Letra da ilha da linha ' + (i + 1) + '"></label>' +
           '<label>Responsável' + campoNome(R, 'data-campo="nome" aria-label="Responsável da linha ' + (i + 1) + '"', l.nome) + '</label>' +

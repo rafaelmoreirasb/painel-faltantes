@@ -451,14 +451,17 @@ const PainelFaltantes = (() => {
 
   /** Responsáveis por ilha: mapa { 'dd/mm/aaaa': { A: 'Nome', ... } } */
   function mapaResponsaveis() {
+    const c = cacheLer('resp:mapa');
+    if (c) return c;
     const aba = planilha().getSheetByName(CFG.ABA_RESPONSAVEIS);
     const m = {};
-    if (!aba) return m;
+    if (!aba) { cacheGravar('resp:mapa', m, 600); return m; }
     for (const r of lerTudo(aba, CAB_RESP.length)) {
       const d = diaDe(r[0]), il = String(r[1]).trim().toUpperCase(), nome = String(r[2]).trim();
       if (!d || !il) continue;
       (m[d] = m[d] || {})[il] = nome;
     }
+    cacheGravar('resp:mapa', m, 600); // 10 min; salvar pelo painel atualiza na hora
     return m;
   }
   /** Ilhas que operaram no dia (letras das rotas da aba Aduana) — guardado 6 h. */
@@ -502,6 +505,7 @@ const PainelFaltantes = (() => {
       const r = aba.getRange(alvo, 1, 1, CAB_RESP.length);
       r.setNumberFormat('@');
       r.setValues([linha]);
+      try { const m = cacheLer('resp:mapa'); if (m) { (m[dia] = m[dia] || {})[ilha] = linha[2]; cacheGravar('resp:mapa', m, 600); } } catch (e) {}
       return { ok: true };
     } finally {
       lock.releaseLock();
@@ -509,6 +513,8 @@ const PainelFaltantes = (() => {
   }
   /** Nomes da aba Colaboradores (coluna com "nome" no cabeçalho; senão a coluna A). */
   function colaboradores() {
+    const c = cacheLer('colab');
+    if (c) return c;
     const aba = planilha().getSheetByName(CFG.ABA_COLABORADORES);
     if (!aba || aba.getLastRow() < 2) return [];
     const v = aba.getRange(1, 1, aba.getLastRow(), Math.max(1, aba.getLastColumn())).getDisplayValues();
@@ -516,7 +522,9 @@ const PainelFaltantes = (() => {
     if (col < 0) col = 0;
     const nomes = {};
     v.slice(1).forEach((r) => { const n = String(r[col] || '').trim(); if (n) nomes[n] = 1; });
-    return Object.keys(nomes).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    const lista = Object.keys(nomes).sort((a, b) => a.localeCompare(b, 'pt-BR'));
+    cacheGravar('colab', lista, 600); // nome novo na aba Colaboradores aparece em até 10 min
+    return lista;
   }
   /** Linhas do resumo entre dois dias (inclusive), com a classificação manual e o responsável da ilha. */
   function resumoPeriodo(ini, fim) {
