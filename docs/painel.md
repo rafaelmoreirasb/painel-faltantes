@@ -48,6 +48,24 @@ Código: [`apps-script/painel/`](../apps-script/painel/) — 3 arquivos: `Painel
   `raw.githubusercontent.com/rafaelmoreirasb/painel-faltantes/main/apps-script/painel/` (guardados 5 min). Se o GitHub
   falhar, usa as cópias do projeto. ⚠️ Quem puder alterar o repositório muda o painel — hoje só o Rafael (e o Claude).
 
+## Endereço no Vercel (atalho para os colaboradores DHL)
+O Vercel é só um **endereço fácil de lembrar** que leva ao painel. Ele não guarda nenhum dado: quem abre cai no Web App
+e precisa estar logado com a **conta DHL** (o painel é "Anyone within DHL Group"; a DHL bloqueia o acesso para quem é
+de fora). Configuração: `vercel.json` na raiz do repositório.
+
+| Endereço | Abre |
+|---|---|
+| `https://<seu-projeto>.vercel.app/` | o painel (aba Faltantes) |
+| `https://<seu-projeto>.vercel.app/responsaveis` | direto a aba Responsáveis por ilha |
+
+Publicar (uma vez, feito pelo Rafael — o Claude não tem acesso à conta Vercel):
+1. Entrar em **vercel.com** com a conta do GitHub (a mesma do sistema gestao-qualidade).
+2. **Add New… › Project** › na lista, **Import** em `painel-faltantes`.
+3. **Framework Preset: Other**; não mexer em Build/Output › **Deploy**.
+4. (Opcional) **Settings › Domains** › editar o nome para algo como `faltantes-ssp53.vercel.app`.
+
+Depois disso, todo push no `main` republica sozinho. Se o link do Web App mudar um dia, basta trocar no `vercel.json`.
+
 ## Instalar (uma vez)
 1. Abra o projeto de Apps Script **Importar Relatórios** (o mesmo do importador; em script.google.com).
    O projeto não precisa estar preso à planilha: o painel abre a planilha pelo ID.

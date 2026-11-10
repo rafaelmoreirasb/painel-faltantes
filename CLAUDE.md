@@ -13,6 +13,7 @@ CLAUDE.md          este arquivo (contexto que toda conversa nova lê)
 apps-script/       scripts do Google Apps Script (cópia fiel do que está instalado)
 apps-script/painel/  O PAINEL: Web App do Apps Script (Painel.gs, PainelTela.html, Regras.html) — ver docs/painel.md
 painel/            só um aviso no GitHub Pages apontando para o Web App
+vercel.json        atalho no Vercel: redireciona para o Web App (sem dados)
 regras/REGRAS.md   regras de classificação — fonte da verdade
 docs/decisoes.md   registro das decisões
 docs/rotina.md     rotina diária do Rafael (exportar → Drive → painel → revisar)
@@ -55,7 +56,7 @@ Solving: mesmas colunas de antes (com "Hora","Data" no lugar de "Data","de") + I
 Tipo do pacote / Tipo ficam em branco até chegar a aba que diferencia separável × volumoso.
 
 **Painel publicado (Web App):** https://script.google.com/a/macros/dhl.com/s/AKfycby_asEzOPexlsqS279IgK4b-SI8D6MHjAHx5eAeg5s5lBxOz8zQ-cqyy7tnNRNj2Vpq/exec
-(GitHub Pages https://rafaelmoreirasb.github.io/painel-faltantes/painel/ só redireciona para ele.)
+(GitHub Pages https://rafaelmoreirasb.github.io/painel-faltantes/painel/ e o Vercel — `vercel.json`, `/` e `/responsaveis` — só redirecionam para ele; nenhum dado fica fora da DHL.)
 
 ## Regras de trabalho
 - Scripts Apps Script: sempre com trava (`LockService`), coluna `Chave` para não duplicar, `Importado em`, e um gatilho de 15 min criado por função `criarGatilho…` que só mexe no próprio gatilho. O Apps Script do Rafael está em **inglês** (Executions, Triggers, Time-driven).
