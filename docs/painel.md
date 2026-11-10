@@ -41,7 +41,8 @@ Código: [`apps-script/painel/`](../apps-script/painel/) — 3 arquivos: `Painel
   6). Trocar a letra de uma linha já salva apaga a ilha antiga; letra repetida ou com número é recusada.
   Na aba Faltantes, pacote com **erro de conteinerização** mostra "cobrar: Nome", e o cartão "Erros de conteinerização do
   dia por responsável" resume (com o link "Preencher responsáveis por ilha ›").
-  (Vale para todos os pacotes até existir a aba que diz o que é volumoso.)
+  O "cobrar" e os rankings de erro por responsável/ilha contam **só os Volumosos**.
+- **Volumoso × Sorting**: o pacote é **Volumoso** se o Shipment ID aparece em qualquer linha da aba **One Bipe** (qualquer data); senão é **Sorting**. Cada pacote ganha a etiqueta (amarela = Volumoso, cinza = Sorting) e no topo há os botões **Tipo: Todos · Volumoso · Sorting**, que filtram indicadores, barras, regras em uso, lista e também a semana/mês. O filtro escolhido fica lembrado no navegador. ID novo na One Bipe passa a contar em até 10 min. (Os faltantes de 03/11 saem quase todos como Sorting porque a One Bipe começa em 04/11.)
 - **Bipes novos** (amarelo): o que apareceu desde a última vez que você abriu o painel neste navegador.
 - **Rápido**: um gatilho (`painelPreparar`, a cada 5 min) deixa prontos os dias com faltantes dos últimos 4 dias. O painel
   abre em 1–2 s e mostra "Dados preparados às HH:MM". Dias mais antigos são calculados na 1ª vez (~10 s) e ficam guardados 6 h.

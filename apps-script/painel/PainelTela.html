@@ -88,6 +88,11 @@
   .tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
   .tools input { flex: 1 1 240px; max-width: 360px; }
   .chip { height: 28px; font-size: 12px; border-radius: 999px; padding: 0 12px; }
+  .tipos { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 14px; }
+  .tipos .rot { font-size: 13px; font-weight: 700; color: var(--cinza-texto, #595959); }
+  .tipos button[aria-pressed="true"] { background: var(--vermelho); color: #fff; border-color: var(--vermelho); }
+  .pill.vol { color: var(--preto); background: var(--amarelo); border-color: var(--amarelo); }
+  .pill.sor { color: #4d4d4d; background: #ececec; border-color: #ececec; }
 
   /* Tabelas */
   .scroll { overflow: auto; max-height: 75vh; border: 1px solid var(--cinza-borda); border-radius: var(--raio); }
@@ -230,7 +235,7 @@
   });
 
   /* ---------- estado ---------- */
-  const S = { dias: [], dia: null, pacotes: [], manual: {}, filtro: null, busca: '', vistosAntes: null, carregando: false, ultima: null, avisos: [], url: '', segundos: 0, regras: [], abaRegras: true, servidor: 1, soConflitos: false,
+  const S = { dias: [], dia: null, pacotes: [], manual: {}, filtro: null, busca: '', vistosAntes: null, carregando: false, ultima: null, avisos: [], url: '', segundos: 0, regras: [], abaRegras: true, servidor: 1, soConflitos: false, tipo: (() => { try { return localStorage.getItem('pf-tipo') || 'todos'; } catch (e) { return 'todos'; } })(),
     modo: 'dia', semana: '', mes: '', escolhidos: [], periodo: null, resp: null, buscaPer: '', diasResumo: [],
     aba: 'faltantes', respDia: '', respAba: null, respSeg: null, respLinhas: [], respErro: '' };
   const manualDe = (p) => S.manual[p.dia + '|' + p.id] || S.manual['*|' + p.id] || null;
@@ -407,7 +412,8 @@
   function renderPeriodo() {
     const m = $('#conteudo');
     const P = S.periodo || { linhas: [] };
-    const L = P.linhas;
+    const Ltodas = P.linhas;
+    const L = Ltodas.filter(doTipo);
     const dias = [...new Set(L.map((l) => l.dia))].sort((a, b) => dataDe(a) - dataDe(b));
     const nErr = L.filter((l) => ehErroCont(l.resultado)).length;
     const nAb = L.filter((l) => /em aberto/i.test(l.resultado)).length;
@@ -420,7 +426,7 @@
     const porDia = dias.map((d) => { const ls = L.filter((l) => l.dia === d); const e = ls.filter((l) => ehErroCont(l.resultado)).length; return { dia: d, nome: d.slice(0, 5), n: ls.length, sub: e + ' erro' + (e === 1 ? '' : 's') + ' de conteinerização', partes: [[e, 'var(--vermelho)'], [ls.length - e, 'var(--cinza-apagado)']] }; });
     const maxD = Math.max(1, ...porDia.map((x) => x.n));
     // por ilha e por responsável (só erros de conteinerização)
-    const erros = L.filter((l) => ehErroCont(l.resultado));
+    const erros = L.filter((l) => cobravel(l) && ehErroCont(l.resultado));
     const conta = (fn) => { const c = new Map(); erros.forEach((l) => { const k = fn(l); c.set(k, (c.get(k) || 0) + 1); }); return [...c.entries()].sort((a, b) => b[1] - a[1]); };
     const porIlha = conta((l) => l.ilha || '—').map(([k, n]) => ({ nome: 'Ilha ' + k, n, sub: fmt(L.filter((l) => (l.ilha || '—') === k).length) + ' faltantes na ilha' }));
     const porResp = conta((l) => l.responsavel || 'Sem responsável cadastrado').map(([k, n]) => {
@@ -431,7 +437,7 @@
     const tab = L.filter((l) => !q || norm([l.id, l.rota, l.ilha, l.responsavel, l.resultado, l.dia].join(' ')).includes(q))
       .sort((a, b) => dataDe(b.dia) - dataDe(a.dia) || Number(ehErroCont(b.resultado)) - Number(ehErroCont(a.resultado)) || String(a.rota).localeCompare(String(b.rota)));
     const semDados = !L.length;
-    m.innerHTML =
+    m.innerHTML = chipsTipo(Ltodas) +
       '<p class="lead">Período: <b>' + esc(P.rot || '') + '</b>' + (P.ini ? ' (' + esc(P.ini) + ' a ' + esc(P.fim) + ')' : '') + ' · <b>' + fmt(dias.length) + '</b> dia' + (dias.length === 1 ? '' : 's') + ' com dados. ' +
       'Os dados vêm da aba <b>Resumo diário</b> (o resultado final já considera a sua classificação manual). Clique num dia para abrir o detalhe com a linha do tempo.</p>' +
       (semDados ? '<p class="msg">Nenhum faltante neste período na aba Resumo diário. ' + (P.vazio ? 'Marque pelo menos um dia.' : 'O resumo começa nos dias que estavam na planilha quando o painel foi atualizado.') + '</p>' : '') +
@@ -444,18 +450,36 @@
       '</section>' +
       '<section class="card"><h2>Evolução por dia</h2><p class="note"><span class="leg" style="background:var(--vermelho)"></span> erros de conteinerização · <span class="leg" style="background:var(--cinza-apagado)"></span> outros faltantes. Clique no dia para ver o detalhe.</p>' + barrasSimples(porDia, maxD) + '</section>' +
       '<div class="duas">' +
-        '<section class="card"><h2>Erros de conteinerização por responsável</h2><p class="note">Quem estava responsável pela ilha (letra da rota) no dia do erro — aba <b>Responsáveis</b>.</p>' + (porResp.length ? barrasSimples(porResp, Math.max(1, ...porResp.map((x) => x.n)), 'var(--vermelho)') : '<p class="note">Nenhum erro de conteinerização no período.</p>') + '</section>' +
-        '<section class="card"><h2>Erros de conteinerização por ilha</h2>' + (porIlha.length ? barrasSimples(porIlha, Math.max(1, ...porIlha.map((x) => x.n)), 'var(--vermelho)') : '<p class="note">Nenhum erro de conteinerização no período.</p>') + '</section>' +
+        '<section class="card"><h2>Erros de conteinerização por responsável' + (temTipo(Ltodas) ? ' (volumoso)' : '') + '</h2><p class="note">Quem estava responsável pela ilha (letra da rota) no dia do erro — aba <b>Responsáveis</b>.</p>' + (porResp.length ? barrasSimples(porResp, Math.max(1, ...porResp.map((x) => x.n)), 'var(--vermelho)') : '<p class="note">Nenhum erro de conteinerização no período.</p>') + '</section>' +
+        '<section class="card"><h2>Erros de conteinerização por ilha' + (temTipo(Ltodas) ? ' (volumoso)' : '') + '</h2>' + (porIlha.length ? barrasSimples(porIlha, Math.max(1, ...porIlha.map((x) => x.n)), 'var(--vermelho)') : '<p class="note">Nenhum erro de conteinerização no período.</p>') + '</section>' +
       '</div>' +
       '<section class="card"><h2>Resultado de cada faltante no período</h2>' + barrasSimples(lista.map(([r, n]) => ({ nome: r, n, partes: [[n, COR(r)]] })), maxR) + '</section>' +
       '<section class="card"><div class="tools"><h2>Pacotes do período</h2><input id="buscaPer" type="search" placeholder="Buscar shipment, rota, ilha, responsável…" value="' + esc(S.buscaPer) + '" aria-label="Buscar no período"></div>' +
         '<div class="scroll"><table><thead><tr><th>Dia</th><th>Shipment</th><th>Rota</th><th>Ilha</th><th>Responsável da ilha</th><th>Resultado</th></tr></thead><tbody>' +
-        (tab.length ? tab.slice(0, 1500).map((l) => '<tr><td class="mono"><a href="#" data-abre="' + l.dia + '">' + esc(l.dia.slice(0, 5)) + '</a></td><td class="mono">' + esc(l.id) + '</td><td class="mono">' + esc(l.rota) + '</td><td class="mono">' + esc(l.ilha) + '</td><td>' + (l.responsavel ? esc(l.responsavel) : '<span class="sub">—</span>') + '</td><td class="res">' + esc(l.resultado) + (l.manual ? '<span class="pill man">manual</span>' : '') + (ehErroCont(l.resultado) && l.responsavel ? '<span class="sub">cobrar: ' + esc(l.responsavel) + '</span>' : '') + '</td></tr>').join('') : '<tr><td colspan="6" class="empty">Nenhum pacote.</td></tr>') +
+        (tab.length ? tab.slice(0, 1500).map((l) => '<tr><td class="mono"><a href="#" data-abre="' + l.dia + '">' + esc(l.dia.slice(0, 5)) + '</a></td><td class="mono">' + esc(l.id) + pillTipo(l) + '</td><td class="mono">' + esc(l.rota) + '</td><td class="mono">' + esc(l.ilha) + '</td><td>' + (l.responsavel ? esc(l.responsavel) : '<span class="sub">—</span>') + '</td><td class="res">' + esc(l.resultado) + (l.manual ? '<span class="pill man">manual</span>' : '') + (cobravel(l) && ehErroCont(l.resultado) && l.responsavel ? '<span class="sub">cobrar: ' + esc(l.responsavel) + '</span>' : '') + '</td></tr>').join('') : '<tr><td colspan="6" class="empty">Nenhum pacote.</td></tr>') +
         '</tbody></table></div>' + (tab.length > 1500 ? '<p class="note">Mostrando os 1.500 primeiros. Use a busca.</p>' : '') + '</section>';
+    ligarTipos(m);
     const abrir = (d) => { S.modo = 'dia'; S.dia = d; $('#selModo').value = 'dia'; desenharModo(); S.pacotes = []; S.vistosAntes = null; atualizar(false); window.scrollTo(0, 0); };
     m.querySelectorAll('[data-dia]').forEach((b) => { b.onclick = () => abrir(b.dataset.dia); });
     m.querySelectorAll('[data-abre]').forEach((a) => { a.onclick = (e) => { e.preventDefault(); abrir(a.dataset.abre); }; });
     const bx = $('#buscaPer'); let tm; bx.oninput = () => { clearTimeout(tm); tm = setTimeout(() => { S.buscaPer = bx.value; const pos = bx.selectionStart; renderPeriodo(); const nb = $('#buscaPer'); nb.focus(); try { nb.setSelectionRange(pos, pos); } catch (e) {} }, 250); };
+  }
+
+  /* ---------- Volumoso × Sorting (aba One Bipe; vem do servidor 4) ---------- */
+  const temTipo = (arr) => arr.some((x) => x.tipo);
+  const doTipo = (x) => !S.tipo || S.tipo === 'todos' || !x.tipo || x.tipo === S.tipo;
+  /** "Cobrar" o responsável da ilha só no Volumoso (sem a informação de tipo = servidor antigo, vale para todos). */
+  const cobravel = (x) => !x.tipo || x.tipo === 'Volumoso';
+  const pillTipo = (x) => x.tipo ? '<span class="pill ' + (x.tipo === 'Volumoso' ? 'vol' : 'sor') + '">' + esc(x.tipo) + '</span>' : '';
+  function chipsTipo(arr) {
+    if (!temTipo(arr)) return '';
+    const n = (t) => arr.filter((x) => x.tipo === t).length;
+    const b = (t, rot, k) => '<button type="button" class="chip" data-tipo="' + t + '" aria-pressed="' + ((S.tipo || 'todos') === t) + '">' + rot + ' · ' + fmt(k) + '</button>';
+    return '<div class="tipos" role="group" aria-label="Tipo do pacote"><span class="rot">Tipo:</span>' + b('todos', 'Todos', arr.length) + b('Volumoso', 'Volumoso', n('Volumoso')) + b('Sorting', 'Sorting', n('Sorting')) +
+      '<span class="sub">Volumoso = está na aba One Bipe</span></div>';
+  }
+  function ligarTipos(m) {
+    m.querySelectorAll('[data-tipo]').forEach((b) => { b.onclick = () => { S.tipo = b.dataset.tipo; try { localStorage.setItem('pf-tipo', S.tipo); } catch (e) {} S.filtro = null; render(); }; });
   }
 
   /* ---------- responsáveis por ilha ---------- */
@@ -467,10 +491,10 @@
   function cartaoResponsaveis() {
     if (S.servidor < 3) return '<p class="note">Para ver o indicador de semana/mês e os responsáveis por ilha, atualize o <b>Painel.gs</b> (cole a versão nova e publique uma nova versão).</p>';
     if (!S.resp) return '';
-    const erros = S.pacotes.filter((p) => ehErroCont(resultado(p)));
+    const erros = S.pacotes.filter((p) => doTipo(p) && cobravel(p) && ehErroCont(resultado(p)));
     const porResp = new Map(); erros.forEach((p) => { const k = respDe(p) || 'Sem responsável cadastrado'; if (!porResp.has(k)) porResp.set(k, []); porResp.get(k).push(p); });
     const nResp = Object.values(S.resp.mapa || {}).filter(Boolean).length;
-    return '<section class="card" id="errosResp"><div class="tools"><h2>Erros de conteinerização do dia por responsável</h2><a href="#" id="irResp">Preencher responsáveis por ilha ›</a></div>' +
+    return '<section class="card" id="errosResp"><div class="tools"><h2>Erros de conteinerização do dia por responsável' + (temTipo(S.pacotes) ? ' (volumoso)' : '') + '</h2><a href="#" id="irResp">Preencher responsáveis por ilha ›</a></div>' +
       '<p class="note">' + (nResp ? '<b>' + nResp + '</b> ilha' + (nResp > 1 ? 's' : '') + ' com responsável em ' + esc(S.dia.slice(0, 5)) + '.' : 'Nenhum responsável preenchido para ' + esc(S.dia.slice(0, 5)) + '.') + ' A ilha é a letra da rota (A1, A2… = ilha A).</p>' +
       (erros.length ? '<div class="bars">' + [...porResp.entries()].sort((a, b) => b[1].length - a[1].length).map(([k, ps]) => '<div class="row"><span class="t">' + esc(k) + '<span class="sub">' + esc(ps.map((p) => p.rota + ' · ' + p.id).join(' | ')) + '</span></span><span class="track"><span class="fill" style="display:block;width:' + (100 * ps.length / erros.length) + '%;background:var(--vermelho)"></span></span><span class="n">' + ps.length + '</span></div>').join('') + '</div>'
         : '<p class="note">Nenhum erro de conteinerização neste dia.</p>') + '</section>';
@@ -598,7 +622,7 @@
     if (!S.dia) { m.innerHTML = ''; return; }
     // guarda o foco (o usuário pode estar digitando)
     const ae = document.activeElement, aid = ae && ae.id, aval = ae && 'value' in ae ? ae.value : null, apos = ae && ae.selectionStart;
-    const ps = S.pacotes;
+    const ps = S.pacotes.filter(doTipo);
     const nSem = ps.filter((p) => !p.temSorting).length;
     const nAbertas = ps.filter((p) => !p.janelaFechada).length;
     const nAberto = ps.filter((p) => /em aberto/i.test(resultado(p))).length;
@@ -619,7 +643,8 @@
     $('#lista-res').innerHTML = [...new Set([...SUGESTOES, ...Object.values(S.manual).map((v) => v.classificacao).filter(Boolean)])].map((s) => '<option value="' + esc(s) + '">').join('');
     m.innerHTML = (S.avisos.length ? '<p class="msg err">Atenção: ' + esc(S.avisos.join(' · ')) + '</p>' : '') +
       (nConf ? '<div class="msg err aviso-conflito"><b>' + fmt(nConf) + (nConf > 1 ? ' pacotes têm' : ' pacote tem') + ' conflito entre a sua classificação e uma regra.</b> Para cada um, escolha qual manter. <button type="button" id="btnConflitos">' + (S.soConflitos ? 'Mostrar todos' : 'Mostrar só os conflitos') + '</button></div>' : '') +
-      '<p class="lead">Em <b>' + esc(S.dia) + '</b> a aduana teve <b>' + fmt(ps.length) + '</b> pacotes faltantes. A linha do tempo de cada um começa no <b>sorting</b> (primeiro bipe do pacote no dia na aba Histórico) e vai até ' + CONFIG.JANELA_HORAS + ' h depois; passado esse prazo, não entra mais nada.' +
+      chipsTipo(S.pacotes) +
+      '<p class="lead">Em <b>' + esc(S.dia) + '</b> a aduana teve <b>' + fmt(ps.length) + '</b> pacotes faltantes' + (S.tipo && S.tipo !== 'todos' && temTipo(S.pacotes) ? ' (' + esc(S.tipo) + ')' : '') + '. A linha do tempo de cada um começa no <b>sorting</b> (primeiro bipe do pacote no dia na aba Histórico) e vai até ' + CONFIG.JANELA_HORAS + ' h depois; passado esse prazo, não entra mais nada.' +
       (nSem ? ' <b>' + fmt(nSem) + '</b> não tiveram bipe no Histórico no dia (a linha do tempo começa à 00:00).' : '') +
       (nAbertas ? ' <b>' + fmt(nAbertas) + '</b> ainda estão dentro das ' + CONFIG.JANELA_HORAS + ' h e podem receber bipes novos.' : ' A janela de ' + CONFIG.JANELA_HORAS + ' h de todos já encerrou.') + '</p>' +
       '<section class="tiles">' +
@@ -643,6 +668,7 @@
         (visiveis.length ? visiveis.map(linhaPacote).join('') : '<tr><td colspan="5" class="empty">Nenhum pacote.</td></tr>') +
         '</tbody></table></div></section>';
 
+    ligarTipos(m);
     m.querySelectorAll('.row').forEach((b) => b.onclick = () => { S.filtro = S.filtro && norm(S.filtro) === norm(b.dataset.r) ? null : b.dataset.r; render(); if (S.filtro) $('#tabela').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
     const l = $('#limpar'); if (l) l.onclick = () => { S.filtro = null; S.soConflitos = false; render(); };
     const bc = $('#btnConflitos'); if (bc) bc.onclick = () => { S.soConflitos = !S.soConflitos; S.filtro = null; render(); $('#tabela').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
@@ -661,7 +687,7 @@
   /* Lista das regras em uso (vem da aba Regras) e quantos pacotes do dia caíram em cada uma. */
   function cartaoRegras() {
     const cont = {};
-    for (const p of S.pacotes) if (p.regra.codigo) cont[p.regra.codigo] = (cont[p.regra.codigo] || 0) + 1;
+    for (const p of S.pacotes.filter(doTipo)) if (p.regra.codigo) cont[p.regra.codigo] = (cont[p.regra.codigo] || 0) + 1;
     const link = S.url ? ' <a href="' + esc(S.url) + '" target="_blank" rel="noopener">Editar na planilha ↗</a>' : '';
     const nota = !S.abaRegras
       ? 'A aba <b>Regras</b> ainda não existe na planilha. No Apps Script, rode a função <b>painelCriarAbaRegras</b> uma vez.'
@@ -693,11 +719,11 @@
     const tl = p.eventos.length ? '<ol>' + p.eventos.map((e) => '<li class="' + (ehNovo(p, e) ? 'novo ' : '') + (e === p.ancora ? 'ancora' : '') + '"><span class="q">' + curto(e.quando) + '</span><span class="src ' + e.fonte + '">' + esc(NOMES[e.fonte] || e.fonte) + '</span><span>' + (e === p.ancora ? '<span class="pill ini">início</span> ' : '') + esc(e.texto) + '</span></li>').join('') + '</ol>' : '<span class="sub">Nenhum registro na janela.</span>';
     const ed = '<td class="ed"><input type="text" id="c-' + p.id + '" data-id="' + p.id + '" data-campo="classificacao" list="lista-res" placeholder="Escolha ou escreva" value="' + esc(man.classificacao || '') + '" aria-label="Classificação de ' + p.id + '"><span class="st" id="st-classificacao-' + p.id + '"></span>' +
       '<textarea id="r-' + p.id + '" data-id="' + p.id + '" data-campo="raciocinio" placeholder="O que você viu para chegar nessa classificação" aria-label="Raciocínio de ' + p.id + '">' + esc(man.raciocinio || '') + '</textarea><span class="st" id="st-raciocinio-' + p.id + '"></span></td>';
-    return '<tr><td class="mono">' + esc(p.id) + (novos ? '<span class="pill novo">' + novos + ' novo' + (novos > 1 ? 's' : '') + '</span>' : '') +
+    return '<tr><td class="mono">' + esc(p.id) + pillTipo(p) + (novos ? '<span class="pill novo">' + novos + ' novo' + (novos > 1 ? 's' : '') + '</span>' : '') +
       (p.temSorting ? '' : '<span class="pill sem">sem sorting no dia</span>') + (p.janelaFechada ? '' : '<span class="pill aberta">janela aberta até ' + curto(p.fim) + '</span>') + '</td>' +
       '<td class="rota"><b>' + esc(p.rota) + '</b><span class="sub">' + esc(String(p.horaAduana).slice(0, 5)) + ' · ' + esc(p.rep) + '</span>' +
         (S.resp && ilhaDe(p.rota) ? '<span class="sub">Ilha ' + esc(ilhaDe(p.rota)) + ' · ' + (respDe(p) ? 'resp.: <b>' + esc(respDe(p)) + '</b>' : 'sem responsável') + '</span>' : '') +
-        (S.resp && ehErroCont(resultado(p)) && respDe(p) ? '<span class="pill sem" style="margin-left:0">cobrar: ' + esc(respDe(p)) + '</span>' : '') + (p.vezesFaltante > 1 ? '<span class="sub">faltante ' + p.vezesFaltante + 'x no dia</span>' : '') + '</td>' +
+        (S.resp && cobravel(p) && ehErroCont(resultado(p)) && respDe(p) ? '<span class="pill sem" style="margin-left:0">cobrar: ' + esc(respDe(p)) + '</span>' : '') + (p.vezesFaltante > 1 ? '<span class="sub">faltante ' + p.vezesFaltante + 'x no dia</span>' : '') + '</td>' +
       res + '<td class="tl">' + tl + '</td>' + ed + '</tr>';
   }
 

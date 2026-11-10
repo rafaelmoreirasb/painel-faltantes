@@ -42,6 +42,7 @@ atualize os arquivos do repositório — é aqui que o conhecimento fica, não n
 | Regras | o Rafael edita (ordem, liga/desliga, texto); criada por `painelCriarAbaRegras` |
 | Resumo diário | gatilho `painelPreparar` regrava cada dia enquanto está na planilha (≤15 dias); `painelPreencherResumo` preenche de uma vez. 1 linha por faltante por dia (Dia, Shipment, Rota, Ilha, Rep, Resultado da regra, Código, Teve sorting) — base de semana/mês. Regras rodam também no servidor (eval do Regras.html) |
 | Responsáveis | preenchido na aba **Responsáveis por ilha** do painel (link direto `…/exec?aba=responsaveis`; 6 linhas em branco por dia + "Acrescentar ilha"): 1 pessoa por **ilha = letra da rota** (A1, A2… = A) por dia, sem turno. Erro de conteinerização → "cobrar" o responsável da ilha no dia |
+| One Bipe | aba da planilha principal (Data, Shipment ID; desde 04/11) — define Volumoso × Sorting no painel |
 | Colaboradores | aba que o Rafael cria; o painel lê a coluna com "Nome" no cabeçalho (senão a A) para sugerir nomes |
 | Classificação manual | o Rafael classifica no painel (ou direto na aba); o painel grava Data, Shipment ID, Classificação, Raciocínio, Quem classificou, **Regra conferida** (F: regra que ele viu e decidiu não usar — conflito manual × regra) |
 
@@ -53,7 +54,7 @@ atualize os arquivos do repositório — é aqui que o conhecimento fica, não n
 `Importado em` e `Chave` no fim. Aduana: Shipment ID, Placa, Data auditoria, Hora, ID da rota, Estado, Rep auditoria,
 Tipo do pacote. Auditoria de Carrinho: Shipment ID, Data, Hora, Gaiola, Estado, Rep auditoria, Tipo. Problem
 Solving: mesmas colunas de antes (com "Hora","Data" no lugar de "Data","de") + ID do caso + Data de fechamento.
-Tipo do pacote / Tipo ficam em branco até chegar a aba que diferencia separável × volumoso.
+Tipo do pacote / Tipo das abas ficam em branco. **Volumoso × Sorting vem da aba `One Bipe`** (planilha principal; colunas `DATA `, `Shipment ID`): ID em qualquer linha da One Bipe = **Volumoso**, senão **Sorting** (servidor 4: `p.tipo`, cache 10 min). "Cobrar" o responsável da ilha e os rankings de erro por responsável/ilha contam **só Volumoso**.
 
 **Painel publicado (Web App):** https://script.google.com/a/macros/dhl.com/s/AKfycby_asEzOPexlsqS279IgK4b-SI8D6MHjAHx5eAeg5s5lBxOz8zQ-cqyy7tnNRNj2Vpq/exec
 (GitHub Pages https://rafaelmoreirasb.github.io/painel-faltantes/painel/ e o Vercel https://faltantes-ssp53.vercel.app/ (e `/responsaveis`; config. em `vercel.json`) só redirecionam para ele; nenhum dado fica fora da DHL.)

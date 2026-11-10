@@ -25,6 +25,7 @@ const PainelFaltantes = (() => {
     ABA_REGRAS: 'Regras', // ordem, liga/desliga e texto das regras (o Rafael edita direto na planilha)
     ABA_RESUMO: 'Resumo diário',      // 1 linha por faltante por dia — base dos indicadores de semana/mês
     ABA_RESPONSAVEIS: 'Responsáveis', // quem responde por cada ilha (letra da rota) em cada dia
+    ABA_ONE_BIPE: 'One Bipe', // Shipment ID nesta aba (qualquer data) = Volumoso; fora dela = Sorting
     ABA_COLABORADORES: 'Colaboradores', // lista de nomes (o Rafael cria; coluna com "Nome" no cabeçalho)
     PLANILHA_ID: '1nDqe83XDoY-A3u6rNxaMP2RT74mZNjrYSDUY2c9dKhk', // Conteneirização de Pacotes - Base SSP53
   };
@@ -526,6 +527,31 @@ const PainelFaltantes = (() => {
     cacheGravar('colab', lista, 600); // nome novo na aba Colaboradores aparece em até 10 min
     return lista;
   }
+  /** IDs da aba One Bipe (qualquer data) — guardado 10 min. null = a aba não existe. */
+  function idsOneBipe() {
+    const c = cacheLer('onebipe');
+    if (c) return c.existe ? new Set(c.ids) : null;
+    const aba = planilha().getSheetByName(CFG.ABA_ONE_BIPE);
+    if (!aba) { cacheGravar('onebipe', { existe: false }, 600); return null; }
+    const ult = aba.getLastRow(), nc = Math.max(1, aba.getLastColumn());
+    const cab = aba.getRange(1, 1, 1, nc).getDisplayValues()[0];
+    let col = cab.findIndex((x) => /shipment/i.test(String(x)));
+    if (col < 0) col = Math.min(1, nc - 1);
+    const ids = {};
+    if (ult >= 2) aba.getRange(2, col + 1, ult - 1, 1).getDisplayValues().forEach((r) => { const v = String(r[0]).trim(); if (v) ids[v] = 1; });
+    const lista = Object.keys(ids);
+    cacheGravar('onebipe', { existe: true, ids: lista }, 600);
+    return new Set(lista);
+  }
+  /** 'Volumoso' (está na One Bipe) | 'Sorting' | '' (sem a aba One Bipe). */
+  function tipoDe(ids, id) { return ids ? (ids.has(String(id).trim()) ? 'Volumoso' : 'Sorting') : ''; }
+  /** Marca p.tipo em cada pacote (fora do cache de 6 h: a One Bipe pode mudar depois). */
+  function marcarTipos(dados) {
+    let ids = null;
+    try { ids = idsOneBipe(); } catch (e) { console.warn('One Bipe: ' + e.message); }
+    (dados && dados.pacotes || []).forEach((p) => { p.tipo = tipoDe(ids, p.id); });
+    return dados;
+  }
   /** Linhas do resumo entre dois dias (inclusive), com a classificação manual e o responsável da ilha. */
   function resumoPeriodo(ini, fim) {
     const a = lerDataHora(ini), b = lerDataHora(fim);
@@ -533,6 +559,8 @@ const PainelFaltantes = (() => {
     const aba = planilha().getSheetByName(CFG.ABA_RESUMO);
     const manual = lerManual();
     const resp = mapaResponsaveis();
+    let ids = null;
+    try { ids = idsOneBipe(); } catch (e) {}
     const linhas = [];
     if (aba) for (const r of lerTudo(aba, CAB_RESUMO.length)) {
       const dia = diaDe(r[0]); const d = lerDataHora(dia);
@@ -542,13 +570,13 @@ const PainelFaltantes = (() => {
       const ilha = String(r[3]).trim() || ilhaDe(r[2]);
       linhas.push({ dia, id, rota: r[2], ilha, rep: r[4], regra: r[5], codigo: r[6], sorting: r[7] === 'Sim',
         manual: m && m.classificacao ? m.classificacao : '', resultado: m && m.classificacao ? m.classificacao : r[5],
-        responsavel: (resp[dia] || {})[ilha] || '' });
+        responsavel: (resp[dia] || {})[ilha] || '', tipo: tipoDe(ids, id) });
     }
     return { ini: diaDe(ini), fim: diaDe(fim), linhas, diasNoResumo: diasNoResumo() };
   }
 
   return { CFG, FONTES, listarDias, dadosDoDia, lerManual, lerRegras, criarAbaRegras, salvarClassificacao, lerDataHora, diaDe, planilha, preparar, arquivoTela,
-    gravarResumoDia, preencherResumo, responsaveis, salvarResponsavel, colaboradores, resumoPeriodo, ilhaDe, classificarDia };
+    gravarResumoDia, preencherResumo, responsaveis, salvarResponsavel, colaboradores, resumoPeriodo, ilhaDe, classificarDia, idsOneBipe, marcarTipos };
 })();
 
 /* ===== Funções que o Google chama (precisam ficar soltas, com nomes únicos no projeto) ===== */
@@ -571,8 +599,8 @@ function painelPreparar() {
 }
 function painelListarDias(forcar) { return PainelFaltantes.listarDias(!!forcar); }
 function painelDadosDoDia(dia, forcar) {
-  const d = PainelFaltantes.dadosDoDia(dia, !!forcar);
-  return JSON.stringify({ servidor: 3, dados: d, manual: PainelFaltantes.lerManual(), regras: PainelFaltantes.lerRegras(), url: PainelFaltantes.planilha().getUrl() }); // servidor 3 = Regra conferida + resumo/semana/mês + responsáveis
+  const d = PainelFaltantes.marcarTipos(PainelFaltantes.dadosDoDia(dia, !!forcar));
+  return JSON.stringify({ servidor: 4, dados: d, manual: PainelFaltantes.lerManual(), regras: PainelFaltantes.lerRegras(), url: PainelFaltantes.planilha().getUrl() }); // servidor 3 = Regra conferida + resumo/semana/mês + responsáveis; 4 = tipo Volumoso/Sorting (aba One Bipe)
 }
 function painelSalvarClassificacao(dia, id, classificacao, raciocinio, regraConferida) {
   return PainelFaltantes.salvarClassificacao(dia, id, classificacao, raciocinio, regraConferida);
