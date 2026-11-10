@@ -56,7 +56,7 @@ Solving: mesmas colunas de antes (com "Hora","Data" no lugar de "Data","de") + I
 Tipo do pacote / Tipo ficam em branco até chegar a aba que diferencia separável × volumoso.
 
 **Painel publicado (Web App):** https://script.google.com/a/macros/dhl.com/s/AKfycby_asEzOPexlsqS279IgK4b-SI8D6MHjAHx5eAeg5s5lBxOz8zQ-cqyy7tnNRNj2Vpq/exec
-(GitHub Pages https://rafaelmoreirasb.github.io/painel-faltantes/painel/ e o Vercel — `vercel.json`, `/` e `/responsaveis` — só redirecionam para ele; nenhum dado fica fora da DHL.)
+(GitHub Pages https://rafaelmoreirasb.github.io/painel-faltantes/painel/ e o Vercel https://faltantes-ssp53.vercel.app/ (e `/responsaveis`; config. em `vercel.json`) só redirecionam para ele; nenhum dado fica fora da DHL.)
 
 ## Regras de trabalho
 - Scripts Apps Script: sempre com trava (`LockService`), coluna `Chave` para não duplicar, `Importado em`, e um gatilho de 15 min criado por função `criarGatilho…` que só mexe no próprio gatilho. O Apps Script do Rafael está em **inglês** (Executions, Triggers, Time-driven).
