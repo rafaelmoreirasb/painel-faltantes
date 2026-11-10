@@ -266,7 +266,7 @@
       S.geradoEm = new Date(r.dados.geradoEm);
       $('#lnkPlanilha').href = S.url;
       S.resp = null;
-      if (S.servidor >= 3) { try { S.resp = JSON.parse(await chamar('painelResponsaveis', S.dia)); } catch (e) { console.warn(e); } }
+      if (S.servidor >= 3) { try { S.resp = JSON.parse(await chamar('painelResponsaveis', S.dia, true)); } catch (e) { console.warn(e); } }
       desenharModo();
       if (S.vistosAntes === null) { S.vistosAntes = lerVistos(); if (!S.vistosAntes) salvarVistos(); }
       S.ultima = new Date();
@@ -497,7 +497,7 @@
   async function carregarRespAba() {
     if (!S.respDia) S.respDia = dmyD(new Date());
     try {
-      S.respAba = JSON.parse(await chamar('painelResponsaveis', S.respDia));
+      S.respAba = JSON.parse(await chamar('painelResponsaveis', S.respDia, true));
       S.respErro = '';
       if (S.servidor < 3) S.servidor = 3;
     } catch (e) {

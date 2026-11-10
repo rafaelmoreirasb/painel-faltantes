@@ -474,13 +474,14 @@ const PainelFaltantes = (() => {
     cacheGravar(chave, lista);
     return lista;
   }
-  function responsaveis(dia) {
+  /** rapido = true: não lê a aba Aduana (as ilhas do dia ficam só as já salvas) — é o que a tela usa. */
+  function responsaveis(dia, rapido) {
     if (!diaDe(dia)) throw new Error('Dia inválido.');
     const mapa = mapaResponsaveis();
     const anteriores = Object.keys(mapa).filter((d) => lerDataHora(d) < lerDataHora(dia)).sort((a, b) => lerDataHora(b) - lerDataHora(a));
     const anterior = anteriores.length ? { dia: anteriores[0], mapa: mapa[anteriores[0]] } : null;
     const ilhas = {};
-    ilhasDoDia(dia).forEach((i) => { ilhas[i] = 1; });
+    if (!rapido) ilhasDoDia(dia).forEach((i) => { ilhas[i] = 1; });
     Object.keys(mapa[dia] || {}).forEach((i) => { ilhas[i] = 1; });
     return { dia, ilhas: Object.keys(ilhas).sort(), mapa: mapa[dia] || {}, anterior, colaboradores: colaboradores() };
   }
@@ -584,7 +585,7 @@ function painelCriarAbaRegras() { console.log(PainelFaltantes.criarAbaRegras());
 
 /* ===== Semana/mês e responsáveis por ilha ===== */
 function painelResumoPeriodo(ini, fim) { return JSON.stringify(PainelFaltantes.resumoPeriodo(ini, fim)); }
-function painelResponsaveis(dia) { return JSON.stringify(PainelFaltantes.responsaveis(dia)); }
+function painelResponsaveis(dia, rapido) { return JSON.stringify(PainelFaltantes.responsaveis(dia, rapido === true)); }
 function painelSalvarResponsavel(dia, ilha, nome) { return PainelFaltantes.salvarResponsavel(dia, ilha, nome); }
 /** Rode UMA vez depois de instalar: preenche a aba "Resumo diário" com os dias que já estão na planilha. */
 function painelPreencherResumo() {
