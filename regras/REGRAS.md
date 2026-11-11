@@ -48,6 +48,7 @@ e olham só a janela de 36 h. "Faltante na aduana" é verdade para todo pacote d
 | 3 | R03 | Bipado no Histórico, faltante na Aduana e na Torre, e **logo depois Verificado no Inventário**? | Erro de Conteinerização | Histórico, Aduana, Torre Aduana, Inventário |
 | 4 | R04 | Bipado no Histórico, faltante na Aduana e na Torre (bipado ou não na auditoria de carrinho) e depois **Problem Solving: Problema = pacote avariado e Resolução = não reparado**? | Pacote Avariado | Histórico, Aduana, Torre Aduana, Problem Solving |
 | 5 | R05 | Bipado no Histórico, depois **Pendente, Faltante ou não bipado na auditoria de carrinho**, **Faltante na Aduana na rota de origem** e **A mais na Aduana em outra rota**? (09/11) | Erro de Conteinerização | Histórico, Auditoria de Carrinho, Aduana |
+| 6 | R06 | Bipado no Histórico, depois **Pendente, Faltante ou não bipado na auditoria de carrinho**, **Faltante na Aduana** e **logo em seguida Verificado no Inventário** (com ou sem Faltante na Torre)? (11/11) | Erro de Conteinerização | Histórico, Auditoria de Carrinho, Aduana, Torre Aduana, Inventário |
 
 Regra nova que entra no código e ainda não está na aba `Regras` passa a valer sozinha, **no fim da lista**. Para mudar a
 ordem ou desligar, ponha/edite a linha dela na aba.
@@ -64,6 +65,9 @@ ordem ou desligar, ponha/edite a linha dela na aba.
 - *R05*: na Auditoria de Carrinho, nenhum registro na janela **ou** só "Pendente"/"Faltante" (se tiver "Correto" ou
   "A mais", não vale); e na aba Aduana algum registro "A mais" com `ID da rota` diferente da rota em que faltou.
   É o mesmo caso da R01 visto pela Aduana em vez da Torre; como a R01 vem antes, quando os dois batem aparece R01.
+- *R06*: carrinho como na R05 (nenhum registro ou só Pendente/Faltante); o **primeiro** registro do Inventário depois do
+  Faltante na Aduana tem `Situação` = Verificados. A Torre não é exigida (só aparece no detalhe). Parecida com a R03
+  (que exige Faltante na Torre e não olha o carrinho); como a R03 vem antes, quando as duas batem aparece R03.
 
 ---
 
